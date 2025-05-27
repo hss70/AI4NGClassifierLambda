@@ -1,0 +1,73 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using AI4NGClassifierLambda.Models;
+
+namespace AI4NGClassifierLambda.Controllers
+{
+    [ApiController]
+    [Route("api/classifiers")]
+    public class ClassifiersController : ControllerBase
+    {
+        private static readonly List<Classifier> MockClassifiers = new()
+        {
+            new Classifier
+            {
+                ClassifierId = 1,
+                Status = "Ready",
+                UploadDate = DateTime.UtcNow.AddDays(-2),
+                LastUpdated = DateTime.UtcNow,
+                SessionId = 42,
+                SessionName = "Test Session",
+                Parameters = new Parameters
+                {
+                    A0 = 0.5f,
+                    A1 = [0.1f, 0.2f, 0.3f, 0.12f]
+                },
+                Graphs = new List<Graph>
+                {
+                    new() { Name = "Graph A" },
+                    new() { Name = "Graph B" }
+                }
+            }
+        };
+
+        [HttpGet]
+        public IActionResult GetAllClassifiers()
+        {
+            return Ok(MockClassifiers);
+        }
+
+        [HttpGet("{classifierId}")]
+        public IActionResult GetClassifierById(int classifierId)
+        {
+            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            if (classifier == null)
+                return NotFound();
+
+            return Ok(classifier);
+        }
+
+        [HttpGet("{classifierId}/graphs")]
+        public IActionResult GetGraphsForClassifier(int classifierId)
+        {
+            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            if (classifier == null)
+                return NotFound();
+
+            return Ok(classifier.Graphs);
+        }
+
+        [HttpGet("{classifierId}/graphs/{graphName}")]
+        public IActionResult GetGraphByName(int classifierId, string graphName)
+        {
+            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            if (classifier == null)
+                return NotFound();
+
+            var graph = classifier.Graphs.FirstOrDefault(g => g.Name.Equals(graphName, StringComparison.OrdinalIgnoreCase));
+            if (graph == null)
+                return NotFound();
+
+            return Ok(graph);
+        }
+    }
+}

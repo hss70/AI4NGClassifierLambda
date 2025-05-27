@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AI4NG Classifier Lambda API
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+
+Resources:
+  ClassifierApi:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: AI4NGClassifierLambda::AI4NGClassifierLambda.LambdaEntryPoint::FunctionHandlerAsync
+      Runtime: dotnet8
+      CodeUri: ../src/AI4NGClassifierLambda
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/{proxy+}
+            Method: ANY
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ClassifiersTable
+
+  ClassifiersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: classifiers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
