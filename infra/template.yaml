@@ -98,3 +98,7 @@ Outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${AI4NGHttpApi}.execute-api.${AWS::Region}.amazonaws.com/dev/"
+  SharedApiId:
+    Value: !Ref AI4NGHttpApi
+    Export:
+      Name: SharedApiId
