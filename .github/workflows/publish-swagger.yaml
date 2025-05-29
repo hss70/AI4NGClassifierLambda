@@ -26,8 +26,8 @@ jobs:
       - name: Export dotnet tools path
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       - name: Generate Swagger YAML
-      
-        run: swagger tofile --output classifier.yaml --format yaml src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll v1
+
+        run: swagger tofile --output classifier.yaml --yaml src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll v1
 
 
       - name: Clone API Docs Repo
