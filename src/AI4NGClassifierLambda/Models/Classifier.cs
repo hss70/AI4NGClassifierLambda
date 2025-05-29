@@ -8,8 +8,11 @@
         public DateTime LastUpdated { get; set; }
         public int SessionId { get; set; }
         public required string SessionName { get; set; }
+        public double PeakAccuracy { get; set; }
+        public double ErrorMargin { get; set; }
         public Parameters? Parameters { get; set; }
         public List<Graph>? Graphs { get; set; }
+
     }
 
     public class Parameters

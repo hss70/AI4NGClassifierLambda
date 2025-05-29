@@ -17,6 +17,8 @@ namespace AI4NGClassifierLambda.Controllers
                 LastUpdated = DateTime.UtcNow,
                 SessionId = 42,
                 SessionName = "Test Session",
+                PeakAccuracy = 92.1,
+                ErrorMargin = 12.1,
                 Parameters = new Parameters
                 {
                     A0 = 0.5f,
@@ -24,8 +26,8 @@ namespace AI4NGClassifierLambda.Controllers
                 },
                 Graphs = new List<Graph>
                 {
-                    new() { Name = "Graph A" },
-                    new() { Name = "Graph B" }
+                    new() { Name = "DaAccuracy" },
+                    new() { Name = "HeatMap" }
                 }
             }
         };
