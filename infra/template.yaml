@@ -40,6 +40,9 @@ Resources:
     Properties:
       Handler: AI4NGClassifierLambda::AI4NGClassifierLambda.LambdaEntryPoint::FunctionHandlerAsync
       CodeUri: ../src/AI4NGClassifierLambda
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambdaDynamoDBExecutionRole
       Events:
         GetClassifiers:
           Type: HttpApi
@@ -49,6 +52,31 @@ Resources:
             ApiId: !Ref AI4NGHttpApi
             Auth:
               Authorizer: CognitoAuthorizer
+        GetClassifierById:
+          Type: HttpApi
+          Properties:
+            Path: /api/classifiers/{classifierId}
+            Method: GET
+            ApiId: !Ref AI4NGHttpApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetGraphsForClassifier:
+          Type: HttpApi
+          Properties:
+            Path: /api/classifiers/{classifierId}/graphs
+            Method: GET
+            ApiId: !Ref AI4NGHttpApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+        GetGraphByName:
+          Type: HttpApi
+          Properties:
+            Path: /api/classifiers/{classifierId}/graphs/{graphName}
+            Method: GET
+            ApiId: !Ref AI4NGHttpApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+        
       Environment:
         Variables:
           TABLE_NAME: classifiers
