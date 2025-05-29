@@ -22,19 +22,20 @@ jobs:
 
       - name: Generate Swagger JSON
         run: |
-          dotnet tool install --global Swashbuckle.AspNetCore.Cli
-          dotnet swagger tofile \
+            dotnet tool install --global Swashbuckle.AspNetCore.Cli
+            export PATH="$PATH:$HOME/.dotnet/tools"
+            dotnet swagger tofile \
             --output classifier.yaml \
             src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll \
             v1
 
       - name: Clone API Docs Repo
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git clone https://x-access-token:${{ secrets.DOCS_REPO_PAT }}@github.com/hss70/AI4NGApiDoc.git
-          cp swagger.yaml AI4NGApiDoc/apis/Classifiers.yaml
-          cd AI4NGApiDoc
-          git add .
-          git commit -m "Update classifier swagger from main"
-          git push
+            git config --global user.name "github-actions"
+            git config --global user.email "actions@github.com"
+            git clone https://x-access-token:${{ secrets.DOCS_REPO_PAT }}@github.com/hss70/AI4NGApiDoc.git
+            cp swagger.yaml AI4NGApiDoc/apis/Classifiers.yaml
+            cd AI4NGApiDoc
+            git add .
+            git commit -m "Update classifier swagger from main"
+            git push
