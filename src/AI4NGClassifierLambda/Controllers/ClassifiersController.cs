@@ -20,7 +20,7 @@ namespace AI4NGClassifierLambda.Controllers
                 Parameters = new Parameters
                 {
                     A0 = 0.5f,
-                    A1 = [0.1f, 0.2f, 0.3f, 0.12f]
+                    A1 = new float[4] {0.1f, 0.2f, 0.3f, 0.12f}
                 },
                 Graphs = new List<Graph>
                 {
