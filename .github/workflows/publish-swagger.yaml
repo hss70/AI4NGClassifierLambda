@@ -3,7 +3,10 @@ name: Generate and Publish Swagger
 on:
   push:
     branches: [main]
-
+    paths:
+      - 'src/AI4NGClassifierLambda/**'
+      - 'tools/DocsGenerator/**'
+      - '.github/workflows/publish-swagger.yaml'
 jobs:
   generate-and-publish:
     runs-on: ubuntu-latest
@@ -17,26 +20,21 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install Swagger CLI
-        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli
-
-      - name: Build project
+      - name: Build Lambda project
         run: dotnet build src/AI4NGClassifierLambda/AI4NGClassifierLambda.csproj --configuration Release
 
-      - name: Export dotnet tools path
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-      - name: Generate Swagger YAML
-
-        run: swagger tofile --output classifier.yaml --yaml src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll v1
-
+      - name: Build and run DocsGenerator
+        run: |
+          dotnet build tools/DocsGenerator/DocsGenerator.csproj --configuration Release
+          dotnet run --project tools/DocsGenerator/DocsGenerator.csproj
 
       - name: Clone API Docs Repo
         run: |
-            git config --global user.name "github-actions"
-            git config --global user.email "actions@github.com"
-            git clone https://x-access-token:${{ secrets.DOCS_REPO_PAT }}@github.com/hss70/AI4NGApiDoc.git
-            cp swagger.yaml AI4NGApiDoc/apis/Classifiers.yaml
-            cd AI4NGApiDoc
-            git add .
-            git commit -m "Update classifier swagger from main"
-            git push
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git clone https://x-access-token:${{ secrets.DOCS_REPO_PAT }}@github.com/hss70/AI4NGApiDoc.git
+          cp docs/swagger.yaml AI4NGApiDoc/apis/Classifiers.yaml
+          cd AI4NGApiDoc
+          git add apis/Classifiers.yaml
+          git commit -m "Update classifier swagger from main"
+          git push

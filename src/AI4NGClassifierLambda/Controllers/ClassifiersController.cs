@@ -33,12 +33,15 @@ namespace AI4NGClassifierLambda.Controllers
         };
 
         [HttpGet]
+        [ProducesResponseType(typeof(IEnumerable<Classifier>), StatusCodes.Status200OK)]
         public IActionResult GetAllClassifiers()
         {
             return Ok(MockClassifiers);
         }
 
         [HttpGet("{classifierId}")]
+        [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public IActionResult GetClassifierById(int classifierId)
         {
             var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
@@ -49,6 +52,8 @@ namespace AI4NGClassifierLambda.Controllers
         }
 
         [HttpGet("{classifierId}/graphs")]
+        [ProducesResponseType(typeof(IEnumerable<Graph>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public IActionResult GetGraphsForClassifier(int classifierId)
         {
             var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
@@ -59,6 +64,8 @@ namespace AI4NGClassifierLambda.Controllers
         }
 
         [HttpGet("{classifierId}/graphs/{graphName}")]
+        [ProducesResponseType(typeof(Graph), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public IActionResult GetGraphByName(int classifierId, string graphName)
         {
             var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
