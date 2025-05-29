@@ -6,24 +6,54 @@ Globals:
   Function:
     Timeout: 30
     MemorySize: 256
+    Runtime: dotnet8
+
+  Api:
+    Name: AI4NG-dev
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
 
 Resources:
+
+  # API Gateway (HTTP API)
+  AI4NGHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: AI4NG-dev
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            Type: JWT
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              Audience:
+                - 517s6c84jo5i3lqste5idb0o4c  #Cognito App Client ID
+              Issuer: https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_EaNz6cSp0
+
+  # Lambda Function
   ClassifierApi:
     Type: AWS::Serverless::Function
     Properties:
       Handler: AI4NGClassifierLambda::AI4NGClassifierLambda.LambdaEntryPoint::FunctionHandlerAsync
-      Runtime: dotnet8
       CodeUri: ../src/AI4NGClassifierLambda
       Events:
-        Api:
-          Type: Api
+        GetClassifiers:
+          Type: HttpApi
           Properties:
-            Path: /api/{proxy+}
-            Method: ANY
+            Path: /api/classifiers
+            Method: GET
+            ApiId: !Ref AI4NGHttpApi
+            Auth:
+              Authorizer: CognitoAuthorizer
       Environment:
         Variables:
-          TABLE_NAME: !Ref ClassifiersTable
+          TABLE_NAME: classifiers
 
+  # DynamoDB Table
   ClassifiersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -35,3 +65,8 @@ Resources:
       KeySchema:
         - AttributeName: id
           KeyType: HASH
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${AI4NGHttpApi}.execute-api.${AWS::Region}.amazonaws.com/dev/"
