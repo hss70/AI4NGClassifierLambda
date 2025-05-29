@@ -1,0 +1,226 @@
+openapi: 3.0.4
+info:
+  title: Classifier API
+  version: v1
+paths:
+  /api/classifiers:
+    get:
+      tags:
+        - Classifiers
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Classifier'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Classifier'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Classifier'
+  '/api/classifiers/{classifierId}':
+    get:
+      tags:
+        - Classifiers
+      parameters:
+        - name: classifierId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/Classifier'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Classifier'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/Classifier'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/classifiers/{classifierId}/graphs':
+    get:
+      tags:
+        - Classifiers
+      parameters:
+        - name: classifierId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Graph'
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Graph'
+            text/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Graph'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  '/api/classifiers/{classifierId}/graphs/{graphName}':
+    get:
+      tags:
+        - Classifiers
+      parameters:
+        - name: classifierId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: graphName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/Graph'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/Graph'
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+components:
+  schemas:
+    Classifier:
+      required:
+        - sessionName
+      type: object
+      properties:
+        classifierId:
+          type: integer
+          format: int32
+        status:
+          type: string
+          nullable: true
+        uploadDate:
+          type: string
+          format: date-time
+        lastUpdated:
+          type: string
+          format: date-time
+        sessionId:
+          type: integer
+          format: int32
+        sessionName:
+          type: string
+          nullable: true
+        peakAccuracy:
+          type: number
+          format: double
+        errorMargin:
+          type: number
+          format: double
+        parameters:
+          $ref: '#/components/schemas/Parameters'
+        graphs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Graph'
+          nullable: true
+      additionalProperties: false
+    Graph:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+      additionalProperties: false
+    Parameters:
+      type: object
+      properties:
+        a0:
+          type: number
+          format: float
+        a1:
+          type: array
+          items:
+            type: number
+            format: float
+          nullable: true
+      additionalProperties: false
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: { }

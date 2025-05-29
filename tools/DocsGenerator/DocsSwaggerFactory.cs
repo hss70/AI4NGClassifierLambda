@@ -1,39 +1,29 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
+using AI4NGClassifierLambda;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using AI4NGClassifierLambda;
+using Microsoft.OpenApi.Models;
+
+namespace DocsGenerator;
 
 public class DocsSwaggerFactory : WebApplicationFactory<LocalEntryPoint>
 {
     protected override IHost CreateHost(IHostBuilder builder)
     {
+        var contentRoot = SwaggerOutputHelper.GetContentRoot();
+        builder.UseContentRoot(contentRoot);
+
         builder.ConfigureServices(services =>
         {
-            // Register Swagger services manually
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new() { Title = "Classifier API", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Classifier API", Version = "v1" });
 
-                // Try to locate the XML doc file from the build output of the Lambda project
-                var possiblePaths = new[]
-                {
-                    Path.Combine(AppContext.BaseDirectory, "AI4NGClassifierLambda.xml"),
-                    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "src", "AI4NGClassifierLambda", "bin", "Release", "net8.0", "AI4NGClassifierLambda.xml"),
-                    Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "src", "AI4NGClassifierLambda", "bin", "Release", "net8.0", "AI4NGClassifierLambda.xml")
-                };
-
-                foreach (var xmlPath in possiblePaths)
-                {
-                    if (File.Exists(xmlPath))
-                    {
-                        c.IncludeXmlComments(xmlPath);
-                        Console.WriteLine($"✅ Loaded XML comments from: {xmlPath}");
-                        break;
-                    }
-                }
+                var xmlPath = Path.Combine(contentRoot, "bin", "Release", "net8.0", "AI4NGClassifierLambda.xml");
+                if (File.Exists(xmlPath))
+                    c.IncludeXmlComments(xmlPath);
             });
         });
 
