@@ -8,9 +8,6 @@ jobs:
   generate-and-publish:
     runs-on: ubuntu-latest
 
-    env:
-      PATH: ${{env.PATH}}:$HOME/.dotnet/tools
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -26,7 +23,10 @@ jobs:
       - name: Build project
         run: dotnet build src/AI4NGClassifierLambda/AI4NGClassifierLambda.csproj --configuration Release
 
+      - name: Export dotnet tools path
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
       - name: Generate Swagger YAML
+      
         run: swagger tofile --output classifier.yaml --format yaml src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll v1
 
 
