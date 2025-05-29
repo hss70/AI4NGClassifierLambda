@@ -8,6 +8,9 @@ jobs:
   generate-and-publish:
     runs-on: ubuntu-latest
 
+    env:
+      PATH: ${{env.PATH}}:$HOME/.dotnet/tools
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
@@ -17,17 +20,15 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Install Swagger CLI
+        run: dotnet tool install --global Swashbuckle.AspNetCore.Cli
+
       - name: Build project
         run: dotnet build src/AI4NGClassifierLambda/AI4NGClassifierLambda.csproj --configuration Release
 
-      - name: Generate Swagger JSON
-        run: |
-            dotnet tool install --global Swashbuckle.AspNetCore.Cli
-            export PATH="$PATH:$HOME/.dotnet/tools"
-            dotnet swagger tofile \
-            --output classifier.yaml \
-            src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll \
-            v1
+      - name: Generate Swagger YAML
+        run: swagger tofile --output classifier.yaml --format yaml src/AI4NGClassifierLambda/bin/Release/net8.0/AI4NGClassifierLambda.dll v1
+
 
       - name: Clone API Docs Repo
         run: |
