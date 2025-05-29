@@ -1,8 +1,8 @@
 version = 0.1
 [default.deploy.parameters]
-stack_name = "AI4NG-dev"
-resolve_s3 = true
-s3_prefix = "AI4NG-dev"
+stack_name = "AI4NGClassifier-dev"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-elqih9cswhbb"
+s3_prefix = "AI4NGClassifier-dev"
 region = "eu-west-2"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
