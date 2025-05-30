@@ -29,14 +29,21 @@ Resources:
     Type: AWS::Logs::ResourcePolicy
     Properties:
       PolicyName: !Sub "${AI4NGHttpApi}-ApiGatewayLogsPolicy"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: apigateway.amazonaws.com
-            Action: logs:PutLogEvents
-            Resource: !GetAtt ApiAccessLogGroup.Arn
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              },
+              "Action": "logs:PutLogEvents",
+              "Resource": "${ApiAccessLogGroup.Arn}"
+            }
+          ]
+        }
+
 
   # API Gateway (HTTP API)
   AI4NGHttpApi:
