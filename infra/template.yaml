@@ -23,16 +23,20 @@ Resources:
     Properties:
       Name: AI4NG-dev
       StageName: dev
-      Auth:
-        DefaultAuthorizer: CognitoAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            Type: JWT
-            IdentitySource: "$request.header.Authorization"
-            JwtConfiguration:
-              Audience:
-                - 517s6c84jo5i3lqste5idb0o4c  #Cognito App Client ID
-              Issuer: https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_EaNz6cSp0
+
+  # Explicit Authorizer resource
+  AI4NGCognitoAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      AuthorizerType: JWT
+      IdentitySource:
+        - "$request.header.Authorization"
+      JwtConfiguration:
+        Audience:
+          - 517s6c84jo5i3lqste5idb0o4c
+        Issuer: https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_EaNz6cSp0
+      Name: AI4NGCognitoAuthorizer
 
   # Lambda Function
   ClassifierApi:
@@ -51,7 +55,7 @@ Resources:
             Method: GET
             ApiId: !Ref AI4NGHttpApi
             Auth:
-              Authorizer: CognitoAuthorizer
+              Authorizer: !Ref AI4NGCognitoAuthorizer
         GetClassifierById:
           Type: HttpApi
           Properties:
@@ -59,7 +63,7 @@ Resources:
             Method: GET
             ApiId: !Ref AI4NGHttpApi
             Auth:
-              Authorizer: CognitoAuthorizer
+              Authorizer: !Ref AI4NGCognitoAuthorizer
         GetGraphsForClassifier:
           Type: HttpApi
           Properties:
@@ -67,7 +71,7 @@ Resources:
             Method: GET
             ApiId: !Ref AI4NGHttpApi
             Auth:
-              Authorizer: CognitoAuthorizer
+              Authorizer: !Ref AI4NGCognitoAuthorizer
         GetGraphByName:
           Type: HttpApi
           Properties:
@@ -75,8 +79,7 @@ Resources:
             Method: GET
             ApiId: !Ref AI4NGHttpApi
             Auth:
-              Authorizer: CognitoAuthorizer
-        
+              Authorizer: !Ref AI4NGCognitoAuthorizer
       Environment:
         Variables:
           TABLE_NAME: classifiers
@@ -102,3 +105,7 @@ Outputs:
     Value: !Ref AI4NGHttpApi
     Export:
       Name: SharedApiId
+  SharedApiAuthorizerId:
+    Value: !Ref AI4NGCognitoAuthorizer
+    Export:
+      Name: SharedApiAuthorizerId
