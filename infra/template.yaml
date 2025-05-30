@@ -17,12 +17,49 @@ Globals:
 
 Resources:
 
+  # CloudWatch Log Group for API Gateway Access Logs
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/http-api/${AI4NGHttpApi}-access-logs"
+      RetentionInDays: 14
+
+  # Resource policy to allow API Gateway to write to the log group
+  ApiGatewayLogsPolicy:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyName: !Sub "${AI4NGHttpApi}-ApiGatewayLogsPolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: logs:PutLogEvents
+            Resource: !GetAtt ApiAccessLogGroup.Arn
+
   # API Gateway (HTTP API)
   AI4NGHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       Name: AI4NG-dev
       StageName: dev
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: |
+          {
+            "requestId": "$context.requestId",
+            "ip": "$context.identity.sourceIp",
+            "caller": "$context.identity.caller",
+            "user": "$context.identity.user",
+            "requestTime": "$context.requestTime",
+            "httpMethod": "$context.httpMethod",
+            "resourcePath": "$context.routeKey",
+            "status": "$context.status",
+            "protocol": "$context.protocol",
+            "responseLength": "$context.responseLength",
+            "headers": "$input.params().header"
+          }
 
   # Explicit Authorizer resource
   AI4NGCognitoAuthorizer:
