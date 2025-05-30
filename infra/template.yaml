@@ -53,20 +53,8 @@ Resources:
       StageName: dev
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: |
-          {
-            "requestId": "$context.requestId",
-            "ip": "$context.identity.sourceIp",
-            "caller": "$context.identity.caller",
-            "user": "$context.identity.user",
-            "requestTime": "$context.requestTime",
-            "httpMethod": "$context.httpMethod",
-            "resourcePath": "$context.routeKey",
-            "status": "$context.status",
-            "protocol": "$context.protocol",
-            "responseLength": "$context.responseLength",
-            "headers": "$input.params().header"
-          }
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","headers":"$input.params().header"}'
+
 
   # Explicit Authorizer resource
   AI4NGCognitoAuthorizer:
