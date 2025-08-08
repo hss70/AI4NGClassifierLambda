@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using AI4NGClassifierLambda.Models;
+using AI4NGClassifierLambda.Services;
 
 namespace AI4NGClassifierLambda.Controllers
 {
@@ -7,44 +8,27 @@ namespace AI4NGClassifierLambda.Controllers
     [Route("api/classifiers")]
     public class ClassifiersController : ControllerBase
     {
-        private static readonly List<Classifier> MockClassifiers = new()
+        private readonly IClassifierService _classifierService;
+
+        public ClassifiersController(IClassifierService classifierService)
         {
-            new Classifier
-            {
-                ClassifierId = 1,
-                Status = "Ready",
-                UploadDate = DateTime.UtcNow.AddDays(-2),
-                LastUpdated = DateTime.UtcNow,
-                SessionId = 42,
-                SessionName = "Test Session",
-                PeakAccuracy = 92.1,
-                ErrorMargin = 12.1,
-                Parameters = new Parameters
-                {
-                    A0 = 0.5f,
-                    A1 = new float[4] {0.1f, 0.2f, 0.3f, 0.12f}
-                },
-                Graphs = new List<Graph>
-                {
-                    new() { Name = "DaAccuracy" },
-                    new() { Name = "HeatMap" }
-                }
-            }
-        };
+            _classifierService = classifierService;
+        }
 
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<Classifier>), StatusCodes.Status200OK)]
-        public IActionResult GetAllClassifiers()
+        public async Task<IActionResult> GetAllClassifiers()
         {
-            return Ok(MockClassifiers);
+            var classifiers = await _classifierService.GetAllClassifiersAsync();
+            return Ok(classifiers);
         }
 
         [HttpGet("{classifierId}")]
         [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult GetClassifierById(int classifierId)
+        public async Task<IActionResult> GetClassifierById(int classifierId)
         {
-            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)
                 return NotFound();
 
@@ -54,9 +38,9 @@ namespace AI4NGClassifierLambda.Controllers
         [HttpGet("{classifierId}/graphs")]
         [ProducesResponseType(typeof(IEnumerable<Graph>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult GetGraphsForClassifier(int classifierId)
+        public async Task<IActionResult> GetGraphsForClassifier(int classifierId)
         {
-            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)
                 return NotFound();
 
@@ -66,13 +50,13 @@ namespace AI4NGClassifierLambda.Controllers
         [HttpGet("{classifierId}/graphs/{graphName}")]
         [ProducesResponseType(typeof(Graph), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult GetGraphByName(int classifierId, string graphName)
+        public async Task<IActionResult> GetGraphByName(int classifierId, string graphName)
         {
-            var classifier = MockClassifiers.FirstOrDefault(c => c.ClassifierId == classifierId);
+            var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)
                 return NotFound();
 
-            var graph = classifier.Graphs.FirstOrDefault(g => g.Name.Equals(graphName, StringComparison.OrdinalIgnoreCase));
+            var graph = classifier.Graphs?.FirstOrDefault(g => g.Name.Equals(graphName, StringComparison.OrdinalIgnoreCase));
             if (graph == null)
                 return NotFound();
 

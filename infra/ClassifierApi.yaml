@@ -11,9 +11,9 @@ Globals:
   Api:
     Name: AI4NG-dev
     Cors:
-      AllowMethods: "'GET,POST,OPTIONS'"
-      AllowHeaders: "'Content-Type,Authorization'"
-      AllowOrigin: "'*'"
+      AllowMethods: '''GET,POST,OPTIONS'''
+      AllowHeaders: '''Content-Type,Authorization'''
+      AllowOrigin: '''*'''
 
 Resources:
 
@@ -21,14 +21,14 @@ Resources:
   ApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/http-api/${AI4NGHttpApi}-access-logs"
+      LogGroupName: !Sub /aws/http-api/${AI4NGHttpApi}-access-logs
       RetentionInDays: 14
 
   # Resource policy to allow API Gateway to write to the log group
   ApiGatewayLogsPolicy:
     Type: AWS::Logs::ResourcePolicy
     Properties:
-      PolicyName: !Sub "${AI4NGHttpApi}-ApiGatewayLogsPolicy"
+      PolicyName: !Sub ${AI4NGHttpApi}-ApiGatewayLogsPolicy
       PolicyDocument: !Sub |
         {
           "Version": "2012-10-17",
@@ -44,7 +44,6 @@ Resources:
           ]
         }
 
-
   # API Gateway (HTTP API)
   AI4NGHttpApi:
     Type: AWS::Serverless::HttpApi
@@ -55,7 +54,6 @@ Resources:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
 
-
   # Explicit Authorizer resource
   AI4NGCognitoAuthorizer:
     Type: AWS::ApiGatewayV2::Authorizer
@@ -63,7 +61,7 @@ Resources:
       ApiId: !Ref AI4NGHttpApi
       AuthorizerType: JWT
       IdentitySource:
-        - "$request.header.Authorization"
+        - $request.header.Authorization
       JwtConfiguration:
         Audience:
           - 517s6c84jo5i3lqste5idb0o4c
@@ -79,9 +77,14 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - AWSLambdaDynamoDBExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: FBCSPClassifierParameters
+        - DynamoDBReadPolicy:
+            TableName: EEGProcessingStatus
       Environment:
         Variables:
-          TABLE_NAME: classifiers
+          CLASSIFIER_TABLE: FBCSPClassifierParameters
+          STATUS_TABLE: EEGProcessingStatus
 
   # Lambda Integration
   ClassifierIntegration:
@@ -154,8 +157,8 @@ Resources:
 
 Outputs:
   ApiEndpoint:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${AI4NGHttpApi}.execute-api.${AWS::Region}.amazonaws.com/dev/"
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${AI4NGHttpApi}.execute-api.${AWS::Region}.amazonaws.com/dev/
   SharedApiId:
     Value: !Ref AI4NGHttpApi
     Export:
