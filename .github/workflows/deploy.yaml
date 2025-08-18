@@ -29,5 +29,5 @@ jobs:
 
       - name: Build and deploy SAM
         run: |
-          sam build --template-file infra/template.yaml
+          sam build --template-file infra/ClassifierApi.yaml
           sam deploy --config-env default --no-confirm-changeset --no-fail-on-empty-changeset
