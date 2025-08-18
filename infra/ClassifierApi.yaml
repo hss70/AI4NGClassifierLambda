@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: AI4NG Classifier Lambda API
 
@@ -11,12 +11,11 @@ Globals:
   Api:
     Name: AI4NG-dev
     Cors:
-      AllowMethods: '''GET,POST,OPTIONS'''
-      AllowHeaders: '''Content-Type,Authorization'''
-      AllowOrigin: '''*'''
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
 
 Resources:
-
   # CloudWatch Log Group for API Gateway Access Logs
   ApiAccessLogGroup:
     Type: AWS::Logs::LogGroup
@@ -93,7 +92,7 @@ Resources:
       ApiId: !Ref AI4NGHttpApi
       IntegrationType: AWS_PROXY
       IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ClassifierApi.Arn}/invocations
-      PayloadFormatVersion: '2.0'
+      PayloadFormatVersion: "2.0"
       IntegrationMethod: POST
 
   # Routes (manually defined to attach Authorizer)
@@ -141,19 +140,6 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${AI4NGHttpApi}/*/*
-
-  # DynamoDB Table
-  ClassifiersTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: classifiers
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
 
 Outputs:
   ApiEndpoint:

@@ -20,8 +20,8 @@ namespace AI4NGClassifierLambda.Services
         public ClassifierService(IAmazonDynamoDB dynamoDb, IConfiguration configuration)
         {
             _dynamoDb = dynamoDb;
-            _classifierTable = configuration["CLASSIFIER_TABLE"] ?? "FBCSPClassifierParameters";
-            _statusTable = configuration["STATUS_TABLE"] ?? "EEGProcessingStatus";
+            _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
+            _statusTable = Environment.GetEnvironmentVariable("STATUS_TABLE") ?? "EEGProcessingStatus";
         }
 
         public async Task<List<Classifier>> GetAllClassifiersAsync()

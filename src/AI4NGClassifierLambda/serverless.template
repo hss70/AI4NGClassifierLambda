@@ -14,8 +14,31 @@
         "MemorySize": 512,
         "Timeout": 30,
         "Role": null,
+        "Environment": {
+          "Variables": {
+            "CLASSIFIER_TABLE": "FBCSPClassifierParameters",
+            "STATUS_TABLE": "EEGProcessingStatus"
+          }
+        },
         "Policies": [
-          "AWSLambda_FullAccess"
+          "AWSLambdaBasicExecutionRole",
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "dynamodb:Query",
+                  "dynamodb:Scan",
+                  "dynamodb:GetItem"
+                ],
+                "Resource": [
+                  "arn:aws:dynamodb:*:*:table/FBCSPClassifierParameters",
+                  "arn:aws:dynamodb:*:*:table/EEGProcessingStatus"
+                ]
+              }
+            ]
+          }
         ],
         "Events": {
           "ProxyResource": {
