@@ -32,13 +32,18 @@ namespace AI4NGClassifierLambda.Services
             };
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
+            Console.WriteLine($"Found {response.Items.Count} items in table {_classifierTable}");
+            
             var classifiers = new List<Classifier>();
 
             foreach (var item in response.Items)
             {
+                Console.WriteLine($"Processing item: {JsonSerializer.Serialize(item)}");
                 var classifier = MapToClassifier(item);
                 if (classifier != null)
                     classifiers.Add(classifier);
+                else
+                    Console.WriteLine("Failed to map classifier");
             }
 
             return classifiers;
@@ -72,42 +77,64 @@ namespace AI4NGClassifierLambda.Services
             {
                 return new Classifier
                 {
-                    ClassifierId = int.Parse(item["sessionId"].S),
-                    SessionId = int.Parse(item["sessionId"].S),
-                    SessionName = item.ContainsKey("sessionName") ? item["sessionName"].S : $"Session {item["sessionId"].S}",
+                    ClassifierId = item["sessionId"].S.GetHashCode(),
+                    SessionId = item["sessionId"].S.GetHashCode(),
+                    SessionName = item["sessionId"].S,
                     Status = "Ready",
-                    UploadDate = DateTime.FromBinary(long.Parse(item["timestamp"].N)),
-                    LastUpdated = DateTime.FromBinary(long.Parse(item["timestamp"].N)),
+                    UploadDate = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(item["timestamp"].N)).DateTime,
+                    LastUpdated = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(item["timestamp"].N)).DateTime,
                     PeakAccuracy = 0.0,
                     ErrorMargin = 0.0,
                     Parameters = ExtractParameters(item),
                     Graphs = new List<Graph>()
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error mapping classifier: {ex.Message}");
                 return null;
             }
         }
 
         private Parameters? ExtractParameters(Dictionary<string, AttributeValue> item)
         {
-            if (!item.ContainsKey("classifierData"))
+            if (!item.ContainsKey("cf"))
                 return null;
 
             try
             {
-                var jsonData = JsonSerializer.Deserialize<JsonElement>(item["classifierData"].S);
-                return new Parameters
+                var cfData = item["cf"].S;
+                var jsonData = JsonSerializer.Deserialize<JsonElement>(cfData);
+                
+                if (jsonData.TryGetProperty("param", out var param) && 
+                    param.TryGetProperty("M", out var paramM))
                 {
-                    A0 = jsonData.TryGetProperty("a0", out var a0) ? a0.GetSingle() : 0f,
-                    A1 = jsonData.TryGetProperty("a1", out var a1) && a1.ValueKind == JsonValueKind.Array 
-                        ? a1.EnumerateArray().Select(x => x.GetSingle()).ToArray() 
-                        : new float[0]
-                };
+                    var a0 = paramM.TryGetProperty("a0", out var a0Prop) && 
+                             a0Prop.TryGetProperty("N", out var a0N) ? 
+                             float.Parse(a0N.GetString()) : 0f;
+                    
+                    var a1Array = new List<float>();
+                    if (paramM.TryGetProperty("a1N", out var a1Prop) && 
+                        a1Prop.TryGetProperty("L", out var a1L))
+                    {
+                        foreach (var item2 in a1L.EnumerateArray())
+                        {
+                            if (item2.TryGetProperty("N", out var nValue))
+                                a1Array.Add(float.Parse(nValue.GetString()));
+                        }
+                    }
+                    
+                    return new Parameters
+                    {
+                        A0 = a0,
+                        A1 = a1Array.ToArray()
+                    };
+                }
+                return null;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error extracting parameters: {ex.Message}");
                 return null;
             }
         }
