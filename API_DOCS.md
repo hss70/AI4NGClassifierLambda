@@ -23,7 +23,7 @@ Get specific classifier by ID
 
 ### GET /api/classifiers/session/{sessionId}
 Get classifier by session ID
-- **Parameters:** `sessionId` (integer) - The session ID
+- **Parameters:** `sessionId` (string) - The session ID
 - **Response:** Classifier object
 - **Status:** 200 OK, 404 Not Found
 
@@ -33,10 +33,24 @@ Get all graphs for a classifier
 - **Response:** Array of Graph objects
 - **Status:** 200 OK, 404 Not Found
 
+### GET /api/classifiers/session/{sessionId}/graphs
+Get all graphs for a classifier by session ID
+- **Parameters:** `sessionId` (string) - The session ID
+- **Response:** Array of Graph objects
+- **Status:** 200 OK, 404 Not Found
+
 ### GET /api/classifiers/{classifierId}/graphs/{graphName}
 Get specific graph by name
 - **Parameters:** 
   - `classifierId` (integer) - The classifier ID
+  - `graphName` (string) - The graph name
+- **Response:** Graph object
+- **Status:** 200 OK, 404 Not Found
+
+### GET /api/classifiers/session/{sessionId}/graphs/{graphName}
+Get specific graph by name for session
+- **Parameters:** 
+  - `sessionId` (string) - The session ID
   - `graphName` (string) - The graph name
 - **Response:** Graph object
 - **Status:** 200 OK, 404 Not Found
