@@ -7,7 +7,7 @@ namespace AI4NGClassifierLambda.Services
 {
     public interface IClassifierService
     {
-        Task<List<Classifier>> GetAllClassifiersAsync();
+        Task<List<Classifier>> GetAllClassifiersAsync(string userId = null);
         Task<Classifier?> GetClassifierByIdAsync(int classifierId);
         Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId);
         Task<Classifier?> GetClassifierBySessionIdAsync(string sessionId);
@@ -26,12 +26,21 @@ namespace AI4NGClassifierLambda.Services
             _statusTable = Environment.GetEnvironmentVariable("STATUS_TABLE") ?? "EEGProcessingStatus";
         }
 
-        public async Task<List<Classifier>> GetAllClassifiersAsync()
+        public async Task<List<Classifier>> GetAllClassifiersAsync(string userId = null)
         {
             var scanRequest = new ScanRequest
             {
                 TableName = _classifierTable
             };
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                scanRequest.FilterExpression = "userId = :userId";
+                scanRequest.ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":userId", new AttributeValue { S = userId } }
+                };
+            }
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
             Console.WriteLine($"Found {response.Items.Count} items in table {_classifierTable}");
@@ -56,10 +65,10 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _classifierTable,
-                KeyConditionExpression = "sessionId = :sessionId",
+                KeyConditionExpression = "classifierId = :classifierId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { ":sessionId", new AttributeValue { S = classifierId.ToString() } }
+                    { ":classifierId", new AttributeValue { S = classifierId.ToString() } }
                 },
                 ScanIndexForward = false,
                 Limit = 1
@@ -75,19 +84,18 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<Classifier?> GetClassifierBySessionIdAsync(string sessionId)
         {
-            var queryRequest = new QueryRequest
+            var scanRequest = new ScanRequest
             {
                 TableName = _classifierTable,
-                KeyConditionExpression = "sessionId = :sessionId",
+                FilterExpression = "sessionName = :sessionName",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { ":sessionId", new AttributeValue { S = sessionId } }
+                    { ":sessionName", new AttributeValue { S = sessionId } }
                 },
-                ScanIndexForward = false,
                 Limit = 1
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await _dynamoDb.ScanAsync(scanRequest);
             
             if (response.Items.Count == 0)
                 return null;
@@ -97,20 +105,18 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId)
         {
-            var queryRequest = new QueryRequest
+            var scanRequest = new ScanRequest
             {
                 TableName = _classifierTable,
-                IndexName = "SessionIdIndex",
-                KeyConditionExpression = "sessionId = :sessionId",
+                FilterExpression = "sessionId = :sessionId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { ":sessionId", new AttributeValue { N = sessionId.ToString() } }
+                    { ":sessionId", new AttributeValue { S = sessionId.ToString() } }
                 },
-                ScanIndexForward = false,
                 Limit = 1
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await _dynamoDb.ScanAsync(scanRequest);
             
             if (response.Items.Count == 0)
                 return null;
@@ -122,14 +128,29 @@ namespace AI4NGClassifierLambda.Services
         {
             try
             {
+                // Parse classifierId and sessionId from the data
+                var classifierIdStr = item.ContainsKey("classifierId") ? item["classifierId"].S : "0";
+                var sessionIdStr = item.ContainsKey("sessionId") ? item["sessionId"].S : "0";
+                var sessionName = item.ContainsKey("sessionName") ? item["sessionName"].S : "Unknown";
+                var timestampStr = item.ContainsKey("timestamp") ? item["timestamp"].S : "0";
+                
+                if (!int.TryParse(classifierIdStr, out var classifierId))
+                    classifierId = classifierIdStr.GetHashCode();
+                    
+                if (!int.TryParse(sessionIdStr, out var sessionId))
+                    sessionId = sessionIdStr.GetHashCode();
+                    
+                if (!long.TryParse(timestampStr, out var timestamp))
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
                 return new Classifier
                 {
-                    ClassifierId = item["sessionId"].S.GetHashCode(),
-                    SessionId = item["sessionId"].S.GetHashCode(),
-                    SessionName = item["sessionId"].S,
+                    ClassifierId = classifierId,
+                    SessionId = sessionId,
+                    SessionName = sessionName,
                     Status = "Ready",
-                    UploadDate = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(item["timestamp"].N)).DateTime,
-                    LastUpdated = DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(item["timestamp"].N)).DateTime,
+                    UploadDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).DateTime,
+                    LastUpdated = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).DateTime,
                     PeakAccuracy = 0.0,
                     ErrorMargin = 0.0,
                     Parameters = ExtractParameters(item),

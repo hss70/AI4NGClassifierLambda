@@ -19,7 +19,9 @@ namespace AI4NGClassifierLambda.Controllers
         [ProducesResponseType(typeof(IEnumerable<Classifier>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetAllClassifiers()
         {
-            var classifiers = await _classifierService.GetAllClassifiersAsync();
+            // Extract userId from JWT token
+            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("username")?.Value;
+            var classifiers = await _classifierService.GetAllClassifiersAsync(userId);
             return Ok(classifiers);
         }
 
@@ -35,22 +37,10 @@ namespace AI4NGClassifierLambda.Controllers
             return Ok(classifier);
         }
 
-        [HttpGet("session/{sessionId}")]
+        [HttpGet("session/{sessionId:int}")]
         [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetClassifierBySessionId(int sessionId)
-        {
-            var classifier = await _classifierService.GetClassifierBySessionIdAsync(sessionId);
-            if (classifier == null)
-                return NotFound();
-
-            return Ok(classifier);
-        }
-
-        [HttpGet("session/{sessionId}")]
-        [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetClassifierBySessionId(string sessionId)
         {
             var classifier = await _classifierService.GetClassifierBySessionIdAsync(sessionId);
             if (classifier == null)
