@@ -19,11 +19,12 @@
     {
         public float A0 { get; set; }
         public float[] A1 { get; set; }
+        public string? FullCfJson { get; set; }
     }
 
     public class Graph
     {
         public string Name { get; set; }
-        // Add additional fields from the `Graph` schema if needed
+        public string? Data { get; set; }
     }
 }

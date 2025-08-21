@@ -157,7 +157,7 @@ namespace AI4NGClassifierLambda.Services
                     PeakAccuracy = 0.0,
                     ErrorMargin = 0.0,
                     Parameters = ExtractParameters(item),
-                    Graphs = new List<Graph>()
+                    Graphs = ExtractGraphs(item)
                 };
             }
             catch (Exception ex)
@@ -205,16 +205,40 @@ namespace AI4NGClassifierLambda.Services
                     return new Parameters
                     {
                         A0 = a0,
-                        A1 = a1Array.ToArray()
+                        A1 = a1Array.ToArray(),
+                        FullCfJson = cfData
                     };
                 }
-                return null;
+                return new Parameters
+                {
+                    A0 = 0f,
+                    A1 = new float[0],
+                    FullCfJson = cfData
+                };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error extracting parameters: {ex.Message}");
-                return null;
+                return new Parameters
+                {
+                    A0 = 0f,
+                    A1 = new float[0],
+                    FullCfJson = item.ContainsKey("cf") ? item["cf"].S : null
+                };
             }
+        }
+
+        private List<Graph> ExtractGraphs(Dictionary<string, AttributeValue> item)
+        {
+            var graphs = new List<Graph>();
+            
+            // Add graphs based on available data fields
+            if (item.ContainsKey("fileName") && item["fileName"].S != null)
+            {
+                graphs.Add(new Graph { Name = "Classifier", Data = item["fileName"].S });
+            }
+            
+            return graphs;
         }
     }
 }
