@@ -138,13 +138,15 @@ namespace AI4NGClassifierLambda.Services
                 var timestampStr = item.ContainsKey("timestamp") && item["timestamp"].S != null ? item["timestamp"].S : "0";
                 
                 if (!int.TryParse(classifierIdStr, out var classifierId))
-                    classifierId = Math.Abs(classifierIdStr.GetHashCode());
+                    int.TryParse(classifierIdStr.Substring(0, Math.Min(9, classifierIdStr.Length)), out classifierId);
                     
                 if (!int.TryParse(sessionIdStr, out var sessionId))
-                    sessionId = Math.Abs(sessionIdStr.GetHashCode());
+                    int.TryParse(sessionIdStr.Substring(0, Math.Min(9, sessionIdStr.Length)), out sessionId);
                     
                 if (!long.TryParse(timestampStr, out var timestamp))
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                else
+                    timestamp = timestamp / 1000; // Convert to seconds if needed
 
                 return new Classifier
                 {
@@ -152,8 +154,8 @@ namespace AI4NGClassifierLambda.Services
                     SessionId = sessionId,
                     SessionName = sessionName,
                     Status = "Ready",
-                    UploadDate = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).DateTime,
-                    LastUpdated = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).DateTime,
+                    UploadDate = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime,
+                    LastUpdated = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime,
                     PeakAccuracy = 0.0,
                     ErrorMargin = 0.0,
                     Parameters = ExtractParameters(item),
@@ -232,10 +234,25 @@ namespace AI4NGClassifierLambda.Services
         {
             var graphs = new List<Graph>();
             
-            // Add graphs based on available data fields
+            // Add classifier file
             if (item.ContainsKey("fileName") && item["fileName"].S != null)
             {
                 graphs.Add(new Graph { Name = "Classifier", Data = item["fileName"].S });
+            }
+            
+            // Add DA plot based on s3Key path structure
+            if (item.ContainsKey("s3Key") && item["s3Key"].S != null)
+            {
+                var s3Key = item["s3Key"].S;
+                // Extract path parts: hss70/S8R11_28_May_12_07_NoFeedback_meta (1)/Online/...
+                var pathParts = s3Key.Split('/');
+                if (pathParts.Length >= 2)
+                {
+                    var userId = pathParts[0];
+                    var sessionName = pathParts[1];
+                    var daPlotPath = $"{userId}/{sessionName}/Offline/{userId}/{sessionName}/DA.png";
+                    graphs.Add(new Graph { Name = "DA Plot", Data = daPlotPath });
+                }
             }
             
             return graphs;
