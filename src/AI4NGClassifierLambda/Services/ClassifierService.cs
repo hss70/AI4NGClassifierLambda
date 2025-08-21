@@ -23,6 +23,7 @@ namespace AI4NGClassifierLambda.Services
         {
             _dynamoDb = dynamoDb;
             _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
+            Console.WriteLine($"Using classifier table: {_classifierTable}");
             _statusTable = Environment.GetEnvironmentVariable("STATUS_TABLE") ?? "EEGProcessingStatus";
         }
 
@@ -33,14 +34,15 @@ namespace AI4NGClassifierLambda.Services
                 TableName = _classifierTable
             };
 
-            if (!string.IsNullOrEmpty(userId))
-            {
-                scanRequest.FilterExpression = "userId = :userId";
-                scanRequest.ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                {
-                    { ":userId", new AttributeValue { S = userId } }
-                };
-            }
+            // Temporarily remove userId filter to debug
+            // if (!string.IsNullOrEmpty(userId))
+            // {
+            //     scanRequest.FilterExpression = "userId = :userId";
+            //     scanRequest.ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            //     {
+            //         { ":userId", new AttributeValue { S = userId } }
+            //     };
+            // }
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
             Console.WriteLine($"Found {response.Items.Count} items in table {_classifierTable}");
