@@ -9,6 +9,7 @@ namespace AI4NGClassifierLambda.Services
     {
         Task<List<Classifier>> GetAllClassifiersAsync();
         Task<Classifier?> GetClassifierByIdAsync(int classifierId);
+        Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId);
     }
 
     public class ClassifierService : IClassifierService
@@ -58,6 +59,29 @@ namespace AI4NGClassifierLambda.Services
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { S = classifierId.ToString() } }
+                },
+                ScanIndexForward = false,
+                Limit = 1
+            };
+
+            var response = await _dynamoDb.QueryAsync(queryRequest);
+            
+            if (response.Items.Count == 0)
+                return null;
+
+            return MapToClassifier(response.Items[0]);
+        }
+
+        public async Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId)
+        {
+            var queryRequest = new QueryRequest
+            {
+                TableName = _classifierTable,
+                IndexName = "SessionIdIndex",
+                KeyConditionExpression = "sessionId = :sessionId",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":sessionId", new AttributeValue { N = sessionId.ToString() } }
                 },
                 ScanIndexForward = false,
                 Limit = 1

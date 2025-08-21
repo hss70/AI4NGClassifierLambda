@@ -35,6 +35,18 @@ namespace AI4NGClassifierLambda.Controllers
             return Ok(classifier);
         }
 
+        [HttpGet("session/{sessionId}")]
+        [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetClassifierBySessionId(int sessionId)
+        {
+            var classifier = await _classifierService.GetClassifierBySessionIdAsync(sessionId);
+            if (classifier == null)
+                return NotFound();
+
+            return Ok(classifier);
+        }
+
         [HttpGet("{classifierId}/graphs")]
         [ProducesResponseType(typeof(IEnumerable<Graph>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
