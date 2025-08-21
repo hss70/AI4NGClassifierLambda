@@ -137,11 +137,11 @@ namespace AI4NGClassifierLambda.Services
                 var sessionName = item.ContainsKey("sessionName") && item["sessionName"].S != null ? item["sessionName"].S : "Unknown";
                 var timestampStr = item.ContainsKey("timestamp") && item["timestamp"].S != null ? item["timestamp"].S : "0";
                 
-                if (!int.TryParse(classifierIdStr, out var classifierId))
-                    int.TryParse(classifierIdStr.Substring(0, Math.Min(9, classifierIdStr.Length)), out classifierId);
+                if (!long.TryParse(classifierIdStr, out var classifierId))
+                    classifierId = 0;
                     
-                if (!int.TryParse(sessionIdStr, out var sessionId))
-                    int.TryParse(sessionIdStr.Substring(0, Math.Min(9, sessionIdStr.Length)), out sessionId);
+                if (!long.TryParse(sessionIdStr, out var sessionId))
+                    sessionId = 0;
                     
                 if (!long.TryParse(timestampStr, out var timestamp))
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -172,11 +172,15 @@ namespace AI4NGClassifierLambda.Services
         private Parameters? ExtractParameters(Dictionary<string, AttributeValue> item)
         {
             if (!item.ContainsKey("cf") || item["cf"].S == null)
+            {
+                Console.WriteLine("No cf field found in item");
                 return null;
+            }
 
             try
             {
                 var cfData = item["cf"].S;
+                Console.WriteLine($"CF Data: {cfData.Substring(0, Math.Min(100, cfData.Length))}...");
                 var jsonData = JsonSerializer.Deserialize<JsonElement>(cfData);
                 
                 if (jsonData.TryGetProperty("param", out var param) && 

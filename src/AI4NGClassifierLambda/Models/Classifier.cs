@@ -2,11 +2,11 @@
 {
     public class Classifier
     {
-        public int ClassifierId { get; set; }
+        public long ClassifierId { get; set; }
         public string Status { get; set; }
         public DateTime UploadDate { get; set; }
         public DateTime LastUpdated { get; set; }
-        public int SessionId { get; set; }
+        public long SessionId { get; set; }
         public required string SessionName { get; set; }
         public double PeakAccuracy { get; set; }
         public double ErrorMargin { get; set; }
