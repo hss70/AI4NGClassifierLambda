@@ -24,6 +24,7 @@ namespace AI4NGClassifierLambda.Services
             _dynamoDb = dynamoDb;
             _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
             Console.WriteLine($"Using classifier table: {_classifierTable}");
+            Console.WriteLine($"Using status table: {_statusTable}");
             _statusTable = Environment.GetEnvironmentVariable("STATUS_TABLE") ?? "EEGProcessingStatus";
         }
 
@@ -131,16 +132,16 @@ namespace AI4NGClassifierLambda.Services
             try
             {
                 // Parse classifierId and sessionId from the data
-                var classifierIdStr = item.ContainsKey("classifierId") ? item["classifierId"].S : "0";
-                var sessionIdStr = item.ContainsKey("sessionId") ? item["sessionId"].S : "0";
-                var sessionName = item.ContainsKey("sessionName") ? item["sessionName"].S : "Unknown";
-                var timestampStr = item.ContainsKey("timestamp") ? item["timestamp"].S : "0";
+                var classifierIdStr = item.ContainsKey("classifierId") && item["classifierId"].S != null ? item["classifierId"].S : "0";
+                var sessionIdStr = item.ContainsKey("sessionId") && item["sessionId"].S != null ? item["sessionId"].S : "0";
+                var sessionName = item.ContainsKey("sessionName") && item["sessionName"].S != null ? item["sessionName"].S : "Unknown";
+                var timestampStr = item.ContainsKey("timestamp") && item["timestamp"].S != null ? item["timestamp"].S : "0";
                 
                 if (!int.TryParse(classifierIdStr, out var classifierId))
-                    classifierId = classifierIdStr.GetHashCode();
+                    classifierId = Math.Abs(classifierIdStr.GetHashCode());
                     
                 if (!int.TryParse(sessionIdStr, out var sessionId))
-                    sessionId = sessionIdStr.GetHashCode();
+                    sessionId = Math.Abs(sessionIdStr.GetHashCode());
                     
                 if (!long.TryParse(timestampStr, out var timestamp))
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -168,7 +169,7 @@ namespace AI4NGClassifierLambda.Services
 
         private Parameters? ExtractParameters(Dictionary<string, AttributeValue> item)
         {
-            if (!item.ContainsKey("cf"))
+            if (!item.ContainsKey("cf") || item["cf"].S == null)
                 return null;
 
             try
@@ -179,18 +180,25 @@ namespace AI4NGClassifierLambda.Services
                 if (jsonData.TryGetProperty("param", out var param) && 
                     param.TryGetProperty("M", out var paramM))
                 {
-                    var a0 = paramM.TryGetProperty("a0", out var a0Prop) && 
-                             a0Prop.TryGetProperty("N", out var a0N) ? 
-                             float.Parse(a0N.GetString()) : 0f;
+                    var a0 = 0f;
+                    if (paramM.TryGetProperty("a0", out var a0Prop) && 
+                        a0Prop.TryGetProperty("N", out var a0N) &&
+                        float.TryParse(a0N.GetString(), out var a0Value))
+                    {
+                        a0 = a0Value;
+                    }
                     
                     var a1Array = new List<float>();
                     if (paramM.TryGetProperty("a1N", out var a1Prop) && 
                         a1Prop.TryGetProperty("L", out var a1L))
                     {
-                        foreach (var item2 in a1L.EnumerateArray())
+                        foreach (var arrayElement in a1L.EnumerateArray())
                         {
-                            if (item2.TryGetProperty("N", out var nValue))
-                                a1Array.Add(float.Parse(nValue.GetString()));
+                            if (arrayElement.TryGetProperty("N", out var nValue) &&
+                                float.TryParse(nValue.GetString(), out var floatValue))
+                            {
+                                a1Array.Add(floatValue);
+                            }
                         }
                     }
                     
