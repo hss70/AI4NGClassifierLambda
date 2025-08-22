@@ -94,12 +94,13 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _classifierTable,
-                IndexName = "UserIdIndex",
+                IndexName = "UserIdTimestampIndex",
                 KeyConditionExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":userId", new AttributeValue { S = userId } }
-                }
+                },
+                ScanIndexForward = false
             };
 
             var response = await _dynamoDb.QueryAsync(queryRequest);
@@ -378,7 +379,7 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdFileNameIndex",
+                IndexName = "SessionIdFileNameCreatedAtIndex",
                 KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
                 FilterExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
@@ -421,7 +422,7 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdFileNameIndex",
+                IndexName = "SessionIdFileNameCreatedAtIndex",
                 KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
                 FilterExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
