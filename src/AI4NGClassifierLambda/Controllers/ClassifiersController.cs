@@ -28,7 +28,7 @@ namespace AI4NGClassifierLambda.Controllers
         [HttpGet("{classifierId}")]
         [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetClassifierById(int classifierId)
+        public async Task<IActionResult> GetClassifierById(long classifierId)
         {
             var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)
@@ -37,10 +37,10 @@ namespace AI4NGClassifierLambda.Controllers
             return Ok(classifier);
         }
 
-        [HttpGet("session/{sessionId:int}")]
+        [HttpGet("session/{sessionId:long}")]
         [ProducesResponseType(typeof(Classifier), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetClassifierBySessionId(int sessionId)
+        public async Task<IActionResult> GetClassifierBySessionId(long sessionId)
         {
             var classifier = await _classifierService.GetClassifierBySessionIdAsync(sessionId);
             if (classifier == null)
@@ -52,7 +52,7 @@ namespace AI4NGClassifierLambda.Controllers
         [HttpGet("{classifierId}/graphs")]
         [ProducesResponseType(typeof(IEnumerable<Graph>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetGraphsForClassifier(int classifierId)
+        public async Task<IActionResult> GetGraphsForClassifier(long classifierId)
         {
             var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)
@@ -76,7 +76,7 @@ namespace AI4NGClassifierLambda.Controllers
         [HttpGet("{classifierId}/graphs/{graphName}")]
         [ProducesResponseType(typeof(Graph), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetGraphByName(int classifierId, string graphName)
+        public async Task<IActionResult> GetGraphByName(long classifierId, string graphName)
         {
             var classifier = await _classifierService.GetClassifierByIdAsync(classifierId);
             if (classifier == null)

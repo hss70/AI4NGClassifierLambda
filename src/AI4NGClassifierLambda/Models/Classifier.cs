@@ -15,6 +15,9 @@
 
     }
 
+    /// <summary>
+    /// Parameters for the classifier
+    /// </summary>
     public class Parameters
     {
         public float A0 { get; set; }

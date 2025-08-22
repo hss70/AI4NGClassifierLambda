@@ -8,8 +8,8 @@ namespace AI4NGClassifierLambda.Services
     public interface IClassifierService
     {
         Task<List<Classifier>> GetAllClassifiersAsync(string userId = null);
-        Task<Classifier?> GetClassifierByIdAsync(int classifierId);
-        Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId);
+        Task<Classifier?> GetClassifierByIdAsync(long classifierId);
+        Task<Classifier?> GetClassifierBySessionIdAsync(long sessionId);
         Task<Classifier?> GetClassifierBySessionIdAsync(string sessionId);
     }
 
@@ -17,15 +17,12 @@ namespace AI4NGClassifierLambda.Services
     {
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _classifierTable;
-        private readonly string _statusTable;
 
         public ClassifierService(IAmazonDynamoDB dynamoDb, IConfiguration configuration)
         {
             _dynamoDb = dynamoDb;
             _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
             Console.WriteLine($"Using classifier table: {_classifierTable}");
-            Console.WriteLine($"Using status table: {_statusTable}");
-            _statusTable = Environment.GetEnvironmentVariable("STATUS_TABLE") ?? "EEGProcessingStatus";
         }
 
         public async Task<List<Classifier>> GetAllClassifiersAsync(string userId = null)
@@ -47,7 +44,7 @@ namespace AI4NGClassifierLambda.Services
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
             Console.WriteLine($"Found {response.Items.Count} items in table {_classifierTable}");
-            
+
             var classifiers = new List<Classifier>();
 
             foreach (var item in response.Items)
@@ -63,7 +60,7 @@ namespace AI4NGClassifierLambda.Services
             return classifiers;
         }
 
-        public async Task<Classifier?> GetClassifierByIdAsync(int classifierId)
+        public async Task<Classifier?> GetClassifierByIdAsync(long classifierId)
         {
             var queryRequest = new QueryRequest
             {
@@ -78,7 +75,7 @@ namespace AI4NGClassifierLambda.Services
             };
 
             var response = await _dynamoDb.QueryAsync(queryRequest);
-            
+
             if (response.Items.Count == 0)
                 return null;
 
@@ -99,14 +96,14 @@ namespace AI4NGClassifierLambda.Services
             };
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
-            
+
             if (response.Items.Count == 0)
                 return null;
 
             return MapToClassifier(response.Items[0]);
         }
 
-        public async Task<Classifier?> GetClassifierBySessionIdAsync(int sessionId)
+        public async Task<Classifier?> GetClassifierBySessionIdAsync(long sessionId)
         {
             var scanRequest = new ScanRequest
             {
@@ -120,7 +117,7 @@ namespace AI4NGClassifierLambda.Services
             };
 
             var response = await _dynamoDb.ScanAsync(scanRequest);
-            
+
             if (response.Items.Count == 0)
                 return null;
 
@@ -131,22 +128,37 @@ namespace AI4NGClassifierLambda.Services
         {
             try
             {
-                // Parse classifierId and sessionId from the data
-                var classifierIdStr = item.ContainsKey("classifierId") && item["classifierId"].S != null ? item["classifierId"].S : "0";
-                var sessionIdStr = item.ContainsKey("sessionId") && item["sessionId"].S != null ? item["sessionId"].S : "0";
-                var sessionName = item.ContainsKey("sessionName") && item["sessionName"].S != null ? item["sessionName"].S : "Unknown";
-                var timestampStr = item.ContainsKey("timestamp") && item["timestamp"].S != null ? item["timestamp"].S : "0";
-                
+                // classifierId
+                var classifierIdStr = item.ContainsKey("classifierId") && item["classifierId"].N != null
+                    ? item["classifierId"].N
+                    : "0";
+
+                // sessionId
+                var sessionIdStr = item.ContainsKey("sessionId") && item["sessionId"].N != null
+                    ? item["sessionId"].N
+                    : "0";
+
+                // sessionName
+                var sessionName = item.ContainsKey("sessionName") && item["sessionName"].S != null
+                    ? item["sessionName"].S
+                    : "Unknown";
+
+                // timestamp
+                var timestampStr = item.ContainsKey("timestamp") && item["timestamp"].N != null
+                    ? item["timestamp"].N
+                    : "0";
+
                 if (!long.TryParse(classifierIdStr, out var classifierId))
                     classifierId = 0;
-                    
+
                 if (!long.TryParse(sessionIdStr, out var sessionId))
                     sessionId = 0;
-                    
+
                 if (!long.TryParse(timestampStr, out var timestamp))
                     timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                else
-                    timestamp = timestamp / 1000; // Convert to seconds if needed
+
+                // Dynamo stores ms, convert to seconds
+                var timestampSecs = timestamp / 1000;
 
                 return new Classifier
                 {
@@ -154,8 +166,8 @@ namespace AI4NGClassifierLambda.Services
                     SessionId = sessionId,
                     SessionName = sessionName,
                     Status = "Ready",
-                    UploadDate = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime,
-                    LastUpdated = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime,
+                    UploadDate = DateTimeOffset.FromUnixTimeSeconds(timestampSecs).DateTime,
+                    LastUpdated = DateTimeOffset.FromUnixTimeSeconds(timestampSecs).DateTime,
                     PeakAccuracy = 0.0,
                     ErrorMargin = 0.0,
                     Parameters = ExtractParameters(item),
@@ -171,7 +183,7 @@ namespace AI4NGClassifierLambda.Services
 
         private Parameters? ExtractParameters(Dictionary<string, AttributeValue> item)
         {
-            if (!item.ContainsKey("cf") || item["cf"].S == null)
+            if (!item.ContainsKey("cf") || item["cf"].M == null)
             {
                 Console.WriteLine("No cf field found in item");
                 return null;
@@ -179,47 +191,38 @@ namespace AI4NGClassifierLambda.Services
 
             try
             {
-                var cfData = item["cf"].S;
-                Console.WriteLine($"CF Data: {cfData.Substring(0, Math.Min(100, cfData.Length))}...");
-                var jsonData = JsonSerializer.Deserialize<JsonElement>(cfData);
-                
-                if (jsonData.TryGetProperty("param", out var param) && 
-                    param.TryGetProperty("M", out var paramM))
+                var cfMap = item["cf"].M;
+
+                if (!cfMap.ContainsKey("param") || cfMap["param"].M == null)
+                    return null;
+
+                var paramMap = cfMap["param"].M;
+
+                // Extract a0 (single number)
+                float a0 = 0f;
+                if (paramMap.ContainsKey("a0") && paramMap["a0"].N != null &&
+                    float.TryParse(paramMap["a0"].N, out var a0Val))
                 {
-                    var a0 = 0f;
-                    if (paramM.TryGetProperty("a0", out var a0Prop) && 
-                        a0Prop.TryGetProperty("N", out var a0N) &&
-                        float.TryParse(a0N.GetString(), out var a0Value))
-                    {
-                        a0 = a0Value;
-                    }
-                    
-                    var a1Array = new List<float>();
-                    if (paramM.TryGetProperty("a1N", out var a1Prop) && 
-                        a1Prop.TryGetProperty("L", out var a1L))
-                    {
-                        foreach (var arrayElement in a1L.EnumerateArray())
-                        {
-                            if (arrayElement.TryGetProperty("N", out var nValue) &&
-                                float.TryParse(nValue.GetString(), out var floatValue))
-                            {
-                                a1Array.Add(floatValue);
-                            }
-                        }
-                    }
-                    
-                    return new Parameters
-                    {
-                        A0 = a0,
-                        A1 = a1Array.ToArray(),
-                        FullCfJson = cfData
-                    };
+                    a0 = a0Val;
                 }
+
+                // Extract a1N (list of numbers)
+                var a1Array = new List<float>();
+                if (paramMap.ContainsKey("a1N") && paramMap["a1N"].L != null)
+                {
+                    foreach (var element in paramMap["a1N"].L)
+                    {
+                        if (element.N != null && float.TryParse(element.N, out var val))
+                            a1Array.Add(val);
+                    }
+                }
+
                 return new Parameters
                 {
-                    A0 = 0f,
-                    A1 = new float[0],
-                    FullCfJson = cfData
+                    A0 = a0,
+                    A1 = a1Array.ToArray(),
+                    // if you want the raw cf JSON as a string:
+                    FullCfJson = System.Text.Json.JsonSerializer.Serialize(cfMap)
                 };
             }
             catch (Exception ex)
@@ -228,8 +231,8 @@ namespace AI4NGClassifierLambda.Services
                 return new Parameters
                 {
                     A0 = 0f,
-                    A1 = new float[0],
-                    FullCfJson = item.ContainsKey("cf") ? item["cf"].S : null
+                    A1 = Array.Empty<float>(),
+                    FullCfJson = null
                 };
             }
         }
@@ -237,13 +240,13 @@ namespace AI4NGClassifierLambda.Services
         private List<Graph> ExtractGraphs(Dictionary<string, AttributeValue> item)
         {
             var graphs = new List<Graph>();
-            
+
             // Add classifier file
             if (item.ContainsKey("fileName") && item["fileName"].S != null)
             {
                 graphs.Add(new Graph { Name = "Classifier", Data = item["fileName"].S });
             }
-            
+
             // Add DA plot based on s3Key path structure
             if (item.ContainsKey("s3Key") && item["s3Key"].S != null)
             {
@@ -258,7 +261,7 @@ namespace AI4NGClassifierLambda.Services
                     graphs.Add(new Graph { Name = "DA Plot", Data = daPlotPath });
                 }
             }
-            
+
             return graphs;
         }
     }
