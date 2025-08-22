@@ -30,4 +30,10 @@
         public string Name { get; set; }
         public string? Data { get; set; }
     }
+
+    public class GraphData
+    {
+        public string Name { get; set; }
+        public object Data { get; set; } // JSON object for graph data
+    }
 }
