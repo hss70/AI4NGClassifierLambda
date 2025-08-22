@@ -17,7 +17,8 @@
         "Environment": {
           "Variables": {
             "CLASSIFIER_TABLE": "FBCSPClassifierParameters",
-            "STATUS_TABLE": "EEGProcessingStatus"
+            "STATUS_TABLE": "EEGProcessingStatus",
+            "FILE_TABLE": "FBCSPSessionFiles"
           }
         },
         "Policies": [
@@ -34,7 +35,8 @@
                 ],
                 "Resource": [
                   "arn:aws:dynamodb:*:*:table/FBCSPClassifierParameters",
-                  "arn:aws:dynamodb:*:*:table/EEGProcessingStatus"
+                  "arn:aws:dynamodb:*:*:table/EEGProcessingStatus",
+                  "arn:aws:dynamodb:*:*:table/FBCSPSessionFiles"
                 ]
               }
             ]

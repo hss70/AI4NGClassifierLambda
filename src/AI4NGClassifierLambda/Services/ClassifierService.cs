@@ -17,12 +17,15 @@ namespace AI4NGClassifierLambda.Services
     {
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _classifierTable;
+        private readonly string _fileTable;
 
         public ClassifierService(IAmazonDynamoDB dynamoDb, IConfiguration configuration)
         {
             _dynamoDb = dynamoDb;
             _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
             Console.WriteLine($"Using classifier table: {_classifierTable}");
+            _fileTable = Environment.GetEnvironmentVariable("FILE_TABLE") ?? "FBCSPSessionFiles";
+            Console.WriteLine($"Using file table: {_fileTable}");
         }
 
         public async Task<List<Classifier>> GetAllClassifiersAsync(string userId = null)
@@ -62,19 +65,18 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<Classifier?> GetClassifierByIdAsync(long classifierId)
         {
-            var queryRequest = new QueryRequest
+            var scanRequest = new ScanRequest
             {
                 TableName = _classifierTable,
-                KeyConditionExpression = "classifierId = :classifierId",
+                FilterExpression = "classifierId = :classifierId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { ":classifierId", new AttributeValue { S = classifierId.ToString() } }
+                    { ":classifierId", new AttributeValue { N = classifierId.ToString() } }
                 },
-                ScanIndexForward = false,
                 Limit = 1
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await _dynamoDb.ScanAsync(scanRequest);
 
             if (response.Items.Count == 0)
                 return null;
@@ -111,7 +113,7 @@ namespace AI4NGClassifierLambda.Services
                 FilterExpression = "sessionId = :sessionId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { ":sessionId", new AttributeValue { S = sessionId.ToString() } }
+                    { ":sessionId", new AttributeValue { N = sessionId.ToString() } }
                 },
                 Limit = 1
             };
