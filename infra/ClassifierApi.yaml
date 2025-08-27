@@ -49,9 +49,15 @@ Resources:
     Properties:
       Name: AI4NG-dev
       StageName: dev
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: true
+        LoggingLevel: INFO
+        DataTraceEnabled: true
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","error":"$context.error.message","integrationError":"$context.integration.error"}'
 
   # Explicit Authorizer resource
   AI4NGCognitoAuthorizer:
@@ -75,15 +81,20 @@ Resources:
       CodeUri: ../src/AI4NGClassifierLambda
       Policies:
         - AWSLambdaBasicExecutionRole
-        - AWSLambdaDynamoDBExecutionRole
         - DynamoDBReadPolicy:
             TableName: FBCSPClassifierParameters
         - DynamoDBReadPolicy:
             TableName: EEGProcessingStatus
+        - DynamoDBReadPolicy:
+            TableName: FBCSPSessionFiles
+        - S3ReadPolicy:
+            BucketName: !Sub ai4ng-eeg-results-${AWS::AccountId}-${AWS::Region}
       Environment:
         Variables:
           CLASSIFIER_TABLE: FBCSPClassifierParameters
           STATUS_TABLE: EEGProcessingStatus
+          FILE_TABLE: FBCSPSessionFiles
+          RESULTS_BUCKET: !Sub ai4ng-eeg-results-${AWS::AccountId}-${AWS::Region}
 
   # Lambda Integration
   ClassifierIntegration:
@@ -123,11 +134,56 @@ Resources:
       AuthorizerId: !Ref AI4NGCognitoAuthorizer
       Target: !Sub integrations/${ClassifierIntegration}
 
-  GetGraphByNameRoute:
+  GetClassifierBySessionRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref AI4NGHttpApi
-      RouteKey: GET /api/classifiers/{classifierId}/graphs/{graphName}
+      RouteKey: GET /api/classifiers/session/{sessionId}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AI4NGCognitoAuthorizer
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphsForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphs
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AI4NGCognitoAuthorizer
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphDataForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphdata
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AI4NGCognitoAuthorizer
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphNamesForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphnames
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AI4NGCognitoAuthorizer
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphByNameForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphs/{graphName}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref AI4NGCognitoAuthorizer
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphDataByNameForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref AI4NGHttpApi
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphdata/{graphName}
       AuthorizationType: JWT
       AuthorizerId: !Ref AI4NGCognitoAuthorizer
       Target: !Sub integrations/${ClassifierIntegration}
