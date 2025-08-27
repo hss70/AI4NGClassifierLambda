@@ -57,7 +57,7 @@ namespace AI4NGClassifierLambda.Services
         /// <param name="sessionId"></param>
         /// <param name="graphName"></param>
         /// <returns></returns>
-        Task<Graph> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName);
+        Task<Graph?> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName);
         /// <summary>
         /// Get a graph data for a classifier by its name
         /// Brings back the graph data as a JSON object
@@ -66,7 +66,7 @@ namespace AI4NGClassifierLambda.Services
         /// <param name="sessionId"></param>
         /// <param name="graphName"></param>
         /// <returns></returns>
-        Task<GraphData> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName);
+        Task<GraphData?> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName);
     }
 
     public class ClassifierService : IClassifierService
@@ -334,16 +334,17 @@ namespace AI4NGClassifierLambda.Services
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
 
-            // Query files by sessionId, filter by userId
+            // Query PNG files by sessionId using SessionIdExtensionIndex
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdIndex",
-                KeyConditionExpression = "sessionId = :sessionId",
+                IndexName = "SessionIdExtensionIndex",
+                KeyConditionExpression = "sessionId = :sessionId AND extension = :extension",
                 FilterExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
+                    { ":extension", new AttributeValue { S = "png" } },
                     { ":userId", new AttributeValue { S = userId } }
                 }
             };
@@ -364,7 +365,7 @@ namespace AI4NGClassifierLambda.Services
             return graphNames.Distinct().ToList();
         }
 
-        public async Task<Graph> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
+        public async Task<Graph?> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("UserId is required", nameof(userId));
@@ -379,23 +380,23 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdFileNameCreatedAtIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
-                FilterExpression = "userId = :userId",
+                IndexName = "SessionIdExtensionIndex",
+                KeyConditionExpression = "sessionId = :sessionId AND extension = :extension",
+                FilterExpression = "fileName = :fileName AND userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
+                    { ":extension", new AttributeValue { S = "png" } },
                     { ":fileName", new AttributeValue { S = graphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
-                ScanIndexForward = false,
                 Limit = 1
             };
 
             var response = await _dynamoDb.QueryAsync(queryRequest);
 
             if (response.Items.Count == 0)
-                throw new FileNotFoundException($"Graph {graphName} not found for session {sessionId}");
+                return null;
 
             var item = response.Items[0];
             var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
@@ -407,7 +408,7 @@ namespace AI4NGClassifierLambda.Services
             return new Graph { Name = graphName, Data = fileData };
         }
 
-        public async Task<GraphData> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
+        public async Task<GraphData?> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("UserId is required", nameof(userId));
@@ -422,23 +423,23 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdFileNameCreatedAtIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
-                FilterExpression = "userId = :userId",
+                IndexName = "SessionIdExtensionIndex",
+                KeyConditionExpression = "sessionId = :sessionId AND extension = :extension",
+                FilterExpression = "fileName = :fileName AND userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
+                    { ":extension", new AttributeValue { S = "json" } },
                     { ":fileName", new AttributeValue { S = graphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
-                ScanIndexForward = false,
                 Limit = 1
             };
 
             var response = await _dynamoDb.QueryAsync(queryRequest);
 
             if (response.Items.Count == 0)
-                throw new FileNotFoundException($"Graph data {graphName} not found for session {sessionId}");
+                return null;
 
             var item = response.Items[0];
             var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
