@@ -338,11 +338,14 @@ namespace AI4NGClassifierLambda.Services
             if (string.IsNullOrWhiteSpace(sessionId))
                 throw new ArgumentException("SessionId is required", nameof(sessionId));
 
+            Console.WriteLine($"GetGraphNames - UserId: {userId}, SessionId: {sessionId}");
             var graphNames = new List<string>();
 
             // Convert sessionId to long for DynamoDB query
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
+
+            Console.WriteLine($"Converted sessionId to long: {sessionIdLong}");
 
             // Query PNG files by sessionId using SessionIdExtensionIndex
             var queryRequest = new QueryRequest
@@ -359,19 +362,28 @@ namespace AI4NGClassifierLambda.Services
                 }
             };
 
+            Console.WriteLine($"Querying table: {_fileTable} with sessionId: {sessionIdLong}, extension: png, userId: {userId}");
             var response = await _dynamoDb.QueryAsync(queryRequest);
+            Console.WriteLine($"Query returned {response.Items.Count} items");
 
             // Extract file names
             foreach (var item in response.Items)
             {
+                Console.WriteLine($"Processing item: {JsonSerializer.Serialize(item)}");
                 var fileName = item.ContainsKey("fileName") && item["fileName"].S != null ? item["fileName"].S : "";
                 
                 if (!string.IsNullOrEmpty(fileName))
                 {
+                    Console.WriteLine($"Adding fileName: {fileName}");
                     graphNames.Add(fileName);
+                }
+                else
+                {
+                    Console.WriteLine("fileName is null or empty");
                 }
             }
 
+            Console.WriteLine($"Returning {graphNames.Count} graph names: {string.Join(", ", graphNames)}");
             return graphNames.Distinct().ToList();
         }
 
