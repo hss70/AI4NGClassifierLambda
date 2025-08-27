@@ -128,24 +128,34 @@ namespace AI4NGClassifierLambda.Services
             if (classifierId <= 0)
                 throw new ArgumentException("ClassifierId must be greater than 0", nameof(classifierId));
 
-            var scanRequest = new ScanRequest
+            Console.WriteLine($"Looking for classifier with ID: {classifierId} for user: {userId}");
+
+            var getRequest = new GetItemRequest
             {
                 TableName = _classifierTable,
-                FilterExpression = "classifierId = :classifierId AND userId = :userId",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                Key = new Dictionary<string, AttributeValue>
                 {
-                    { ":classifierId", new AttributeValue { N = classifierId.ToString() } },
-                    { ":userId", new AttributeValue { S = userId } }
-                },
-                Limit = 1
+                    { "classifierId", new AttributeValue { S = classifierId.ToString() } }
+                }
             };
 
-            var response = await _dynamoDb.ScanAsync(scanRequest);
+            var response = await _dynamoDb.GetItemAsync(getRequest);
 
-            if (response.Items.Count == 0)
+            if (!response.IsItemSet)
+            {
+                Console.WriteLine($"No classifier found with ID: {classifierId}");
                 return null;
+            }
 
-            return MapToClassifier(response.Items[0]);
+            // Verify the userId matches
+            if (response.Item.ContainsKey("userId") && response.Item["userId"].S != userId)
+            {
+                Console.WriteLine($"Classifier {classifierId} belongs to different user");
+                return null;
+            }
+
+            Console.WriteLine($"Found classifier: {JsonSerializer.Serialize(response.Item)}");
+            return MapToClassifier(response.Item);
         }
 
         public async Task<Classifier?> GetClassifierBySessionIdAsync(string userId, string sessionId)
