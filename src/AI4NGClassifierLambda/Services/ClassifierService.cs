@@ -282,7 +282,8 @@ namespace AI4NGClassifierLambda.Services
                 if (!string.IsNullOrEmpty(fileName))
                 {
                     Console.WriteLine($"Adding fileName: {fileName}");
-                    graphNames.Add(fileName.Substring(fileName.Length - 4)); // Remove .png extension
+                    var nameWithoutExtension = fileName.EndsWith(".png") ? fileName.Substring(0, fileName.Length - 4) : fileName;
+                    graphNames.Add(nameWithoutExtension);
                 }
                 else
                 {
