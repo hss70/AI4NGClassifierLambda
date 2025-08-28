@@ -429,7 +429,7 @@ namespace AI4NGClassifierLambda.Services
                 throw new ArgumentException("Extension is required", nameof(extension));
 
             Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
-            decodedGraphName = Uri.UnescapeDataString(graphName);
+            var decodedGraphName = Uri.UnescapeDataString(graphName);
 
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
