@@ -135,7 +135,7 @@ namespace AI4NGClassifierLambda.Services
                 TableName = _classifierTable,
                 Key = new Dictionary<string, AttributeValue>
                 {
-                    { "classifierId", new AttributeValue { S = classifierId.ToString() } }
+                    { "classifierId", new AttributeValue { N = classifierId.ToString() } }
                 }
             };
 
@@ -371,7 +371,7 @@ namespace AI4NGClassifierLambda.Services
             {
                 Console.WriteLine($"Processing item: {JsonSerializer.Serialize(item)}");
                 var fileName = item.ContainsKey("fileName") && item["fileName"].S != null ? item["fileName"].S : "";
-                
+
                 if (!string.IsNullOrEmpty(fileName))
                 {
                     Console.WriteLine($"Adding fileName: {fileName}");
