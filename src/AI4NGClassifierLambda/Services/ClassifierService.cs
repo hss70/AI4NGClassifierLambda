@@ -389,42 +389,9 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<Graph?> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("UserId is required", nameof(userId));
-            if (string.IsNullOrWhiteSpace(sessionId))
-                throw new ArgumentException("SessionId is required", nameof(sessionId));
-            if (string.IsNullOrWhiteSpace(graphName))
-                throw new ArgumentException("GraphName is required", nameof(graphName));
-
-            if (!long.TryParse(sessionId, out var sessionIdLong))
-                throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
-
-            var queryRequest = new QueryRequest
-            {
-                TableName = _fileTable,
-                IndexName = "SessionIdExtensionIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND extension = :extension",
-                FilterExpression = "fileName = :fileName AND userId = :userId",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                {
-                    { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
-                    { ":extension", new AttributeValue { S = "png" } },
-                    { ":fileName", new AttributeValue { S = graphName } },
-                    { ":userId", new AttributeValue { S = userId } }
-                },
-                Limit = 1
-            };
-
-            var response = await _dynamoDb.QueryAsync(queryRequest);
-
-            if (response.Items.Count == 0)
+            var filePath = await GetGraphFileNameByName(userId, sessionId, graphName, "png");
+            if (filePath == null)
                 return null;
-
-            var item = response.Items[0];
-            var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
-
-            if (string.IsNullOrEmpty(filePath))
-                throw new InvalidOperationException("File path is empty");
 
             var fileData = await GetFileFromS3(filePath);
             return new Graph { Name = graphName, Data = fileData };
@@ -432,12 +399,24 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<GraphData?> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
+            var filePath = await GetGraphFileNameByName(userId, sessionId, graphName, "json");
+            if (filePath == null)
+                return null;
+
+            var jsonData = await GetJsonFromS3(filePath);
+            return new GraphData { Name = graphName, Data = jsonData };
+        }
+
+        private async Task<string?> GetGraphFileNameByName(string userId, string sessionId, string graphName, string extension)
+        {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("UserId is required", nameof(userId));
             if (string.IsNullOrWhiteSpace(sessionId))
                 throw new ArgumentException("SessionId is required", nameof(sessionId));
             if (string.IsNullOrWhiteSpace(graphName))
                 throw new ArgumentException("GraphName is required", nameof(graphName));
+            if (string.IsNullOrWhiteSpace(extension))
+                throw new ArgumentException("Extension is required", nameof(extension));
 
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
@@ -451,7 +430,7 @@ namespace AI4NGClassifierLambda.Services
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
-                    { ":extension", new AttributeValue { S = "json" } },
+                    { ":extension", new AttributeValue { S = extension } },
                     { ":fileName", new AttributeValue { S = graphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
@@ -467,10 +446,9 @@ namespace AI4NGClassifierLambda.Services
             var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
 
             if (string.IsNullOrEmpty(filePath))
-                throw new InvalidOperationException("File path is empty");
+                return null;
 
-            var jsonData = await GetJsonFromS3(filePath);
-            return new GraphData { Name = graphName, Data = jsonData };
+            return filePath;
         }
 
         private async Task<string> GetFileFromS3(string filePath)

@@ -63,7 +63,7 @@ Resources:
         ThrottlingRateLimit: 50
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","error":"$context.error.message","integrationError":"$context.integration.error"}'
+        Format: '{"requestId":"$context.requestId","endpoint":"$context.routeKey","userId":"$context.authorizer.claims.username","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","status":"$context.status","responseLength":"$context.responseLength","error":"$context.error.message","integrationError":"$context.integration.error"}'
 
   # Explicit Authorizer resource
   AI4NGCognitoAuthorizer:
@@ -101,6 +101,10 @@ Resources:
           STATUS_TABLE: EEGProcessingStatus
           FILE_TABLE: FBCSPSessionFiles
           RESULTS_BUCKET: !Sub ai4ng-eeg-results-${AWS::AccountId}-${AWS::Region}
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: INFO
+        SystemLogLevel: INFO
 
   # Lambda Integration
   ClassifierIntegration:
