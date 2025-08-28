@@ -24,13 +24,14 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine("Endpoint: GET /api/classifiers");
                 var userId = User.FindFirst("username")?.Value;
                 var classifiers = await _classifierService.GetAllClassifiersAsync(userId);
                 return Ok(classifiers);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, "GET /api/classifiers");
             }
         }
 
@@ -42,6 +43,7 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/{classifierId}");
                 var userId = User.FindFirst("username")?.Value;
                 var classifier = await _classifierService.GetClassifierByIdAsync(userId, classifierId);
                 if (classifier == null)
@@ -49,9 +51,9 @@ namespace AI4NGClassifierLambda.Controllers
 
                 return Ok(classifier);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/{classifierId}");
             }
         }
 
@@ -63,6 +65,7 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}");
                 var userId = User.FindFirst("username")?.Value;
                 var classifier = await _classifierService.GetClassifierBySessionIdAsync(userId, sessionId);
                 if (classifier == null)
@@ -70,9 +73,9 @@ namespace AI4NGClassifierLambda.Controllers
 
                 return Ok(classifier);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}");
             }
         }
 
@@ -85,13 +88,14 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphs");
                 var userId = User.FindFirst("username")?.Value;
                 var graphs = await _classifierService.GetGraphsForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphs);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}/graphs");
             }
         }
 
@@ -102,13 +106,14 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphdata");
                 var userId = User.FindFirst("username")?.Value;
                 var graphData = await _classifierService.GetGraphDataForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphData);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}/graphdata");
             }
         }
 
@@ -119,13 +124,14 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphnames");
                 var userId = User.FindFirst("username")?.Value;
                 var graphNames = await _classifierService.GetGraphNamesForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphNames);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}/graphnames");
             }
         }
 
@@ -137,6 +143,7 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphs/{graphName}");
                 var userId = User.FindFirst("username")?.Value;
                 var graph = await _classifierService.GetGraphByNameForClassifierBySessionAsync(userId, sessionId, graphName);
                 if (graph == null)
@@ -144,9 +151,9 @@ namespace AI4NGClassifierLambda.Controllers
 
                 return Ok(graph);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}/graphs/{graphName}");
             }
         }
 
@@ -158,6 +165,7 @@ namespace AI4NGClassifierLambda.Controllers
         {
             try
             {
+                Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphdata/{graphName}");
                 var userId = User.FindFirst("username")?.Value;
                 var graphData = await _classifierService.GetGraphDataByNameForClassifierBySessionAsync(userId, sessionId, graphName);
                 if (graphData == null)
@@ -165,10 +173,23 @@ namespace AI4NGClassifierLambda.Controllers
 
                 return Ok(graphData);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return HandleException(ex, $"GET /api/classifiers/session/{sessionId}/graphdata/{graphName}");
             }
+        }
+        private IActionResult HandleException(Exception ex, string endpoint)
+        {
+            Console.WriteLine($"Error in {endpoint}: {ex.Message}");
+            return ex switch
+            {
+                ArgumentException => BadRequest(ex.Message),
+                UnauthorizedAccessException => Forbid(),
+                Amazon.DynamoDBv2.AmazonDynamoDBException => StatusCode(503, "Database temporarily unavailable"),
+                Amazon.S3.AmazonS3Exception => StatusCode(503, "Storage temporarily unavailable"),
+                TimeoutException => StatusCode(408, "Request timeout"),
+                _ => throw ex
+            };
         }
     }
 }

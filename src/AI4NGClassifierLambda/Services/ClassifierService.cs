@@ -326,26 +326,32 @@ namespace AI4NGClassifierLambda.Services
 
         private async Task<string?> GetGraphFileNameByName(string userId, string sessionId, string graphName, string extension)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("UserId is required", nameof(userId));
-            if (string.IsNullOrWhiteSpace(sessionId))
-                throw new ArgumentException("SessionId is required", nameof(sessionId));
-            if (string.IsNullOrWhiteSpace(graphName))
-                throw new ArgumentException("GraphName is required", nameof(graphName));
-            if (string.IsNullOrWhiteSpace(extension))
-                throw new ArgumentException("Extension is required", nameof(extension));
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    throw new ArgumentException("UserId is required", nameof(userId));
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    throw new ArgumentException("SessionId is required", nameof(sessionId));
+                if (string.IsNullOrWhiteSpace(graphName))
+                    throw new ArgumentException("GraphName is required", nameof(graphName));
+                if (string.IsNullOrWhiteSpace(extension))
+                    throw new ArgumentException("Extension is required", nameof(extension));
 
             Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
             var decodedGraphName = Uri.UnescapeDataString(graphName) + $".{extension}";
+            Console.WriteLine($"Decoded graph name: {decodedGraphName}");
 
             if (!long.TryParse(sessionId, out var sessionIdLong))
+            {
+                Console.WriteLine($"Failed to parse sessionId: {sessionId}");
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
+            }
 
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
                 IndexName = "SessionIdFileNameIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND fileName = :decodedGraphName",
+                KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
                 FilterExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
@@ -359,16 +365,30 @@ namespace AI4NGClassifierLambda.Services
             var response = await DynamoDbQuery(queryRequest);
 
             if (response.Items.Count == 0)
+            {
+                Console.WriteLine($"No items found for fileName: {decodedGraphName}");
                 return null;
+            }
 
             var item = response.Items[0];
+            Console.WriteLine($"Found item: {JsonSerializer.Serialize(item)}");
             var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
 
             if (string.IsNullOrEmpty(filePath))
+            {
+                Console.WriteLine("FilePath is empty in DynamoDB item");
                 return null;
+            }
 
             Console.WriteLine($"Found filePath: {filePath}");
             return filePath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetGraphFileNameByName: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
         private async Task<string> GetFileFromS3(string filePath)
@@ -503,7 +523,7 @@ namespace AI4NGClassifierLambda.Services
                 {
                     A0 = a0,
                     A1 = a1Array.ToArray(),
-                    FullCfJson = System.Text.Json.JsonSerializer.Serialize(cleanCfJson)
+                    FullCfJson = JsonSerializer.Serialize(cleanCfJson)
                 };
             }
             catch (Exception ex)
