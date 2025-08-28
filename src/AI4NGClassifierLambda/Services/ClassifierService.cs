@@ -375,7 +375,7 @@ namespace AI4NGClassifierLambda.Services
                 if (!string.IsNullOrEmpty(fileName))
                 {
                     Console.WriteLine($"Adding fileName: {fileName}");
-                    graphNames.Add(fileName);
+                    graphNames.Add(fileName.Substring(fileName.Length - 4)); // Remove .png extension
                 }
                 else
                 {
@@ -429,7 +429,7 @@ namespace AI4NGClassifierLambda.Services
                 throw new ArgumentException("Extension is required", nameof(extension));
 
             Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
-            var decodedGraphName = Uri.UnescapeDataString(graphName);
+            var decodedGraphName = Uri.UnescapeDataString(graphName) + $".{extension}";
 
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
