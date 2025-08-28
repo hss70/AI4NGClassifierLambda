@@ -576,11 +576,14 @@ namespace AI4NGClassifierLambda.Services
                     }
                 }
 
+                // Convert DynamoDB AttributeValue to clean JSON
+                var cleanCfJson = ConvertAttributeValueToObject(item["cf"]);
+
                 return new Parameters
                 {
                     A0 = a0,
                     A1 = a1Array.ToArray(),
-                    FullCfJson = System.Text.Json.JsonSerializer.Serialize(cfMap)
+                    FullCfJson = System.Text.Json.JsonSerializer.Serialize(cleanCfJson)
                 };
             }
             catch (Exception ex)
@@ -593,6 +596,28 @@ namespace AI4NGClassifierLambda.Services
                     FullCfJson = null
                 };
             }
+        }
+
+        private object? ConvertAttributeValueToObject(AttributeValue attributeValue)
+        {
+            if (attributeValue.NULL)
+                return null;
+            if (attributeValue.S != null)
+                return attributeValue.S;
+            if (attributeValue.N != null)
+                return decimal.Parse(attributeValue.N);
+            if (attributeValue.BOOL)
+                return attributeValue.BOOL;
+            if (attributeValue.L?.Count > 0)
+                return attributeValue.L.Select(ConvertAttributeValueToObject).ToArray();
+            if (attributeValue.M?.Count > 0)
+                return attributeValue.M.ToDictionary(kvp => kvp.Key, kvp => ConvertAttributeValueToObject(kvp.Value));
+            if (attributeValue.SS?.Count > 0)
+                return attributeValue.SS.ToArray();
+            if (attributeValue.NS?.Count > 0)
+                return attributeValue.NS.Select(decimal.Parse).ToArray();
+            
+            return null;
         }
     }
 }
