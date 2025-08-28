@@ -389,20 +389,30 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<Graph?> GetGraphByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
+            Console.WriteLine($"GetGraphByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}");
             var filePath = await GetGraphFileNameByName(userId, sessionId, graphName, "png");
             if (filePath == null)
+            {
+                Console.WriteLine($"No file path found for graph: {graphName}");
                 return null;
+            }
 
+            Console.WriteLine($"Found file path: {filePath}");
             var fileData = await GetFileFromS3(filePath);
             return new Graph { Name = graphName, Data = fileData };
         }
 
         public async Task<GraphData?> GetGraphDataByNameForClassifierBySessionAsync(string userId, string sessionId, string graphName)
         {
+            Console.WriteLine($"GetGraphDataByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}");
             var filePath = await GetGraphFileNameByName(userId, sessionId, graphName, "json");
             if (filePath == null)
+            {
+                Console.WriteLine($"No file path found for graph data: {graphName}");
                 return null;
+            }
 
+            Console.WriteLine($"Found file path: {filePath}");
             var jsonData = await GetJsonFromS3(filePath);
             return new GraphData { Name = graphName, Data = jsonData };
         }
@@ -418,6 +428,9 @@ namespace AI4NGClassifierLambda.Services
             if (string.IsNullOrWhiteSpace(extension))
                 throw new ArgumentException("Extension is required", nameof(extension));
 
+            Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
+            decodedGraphName = Uri.UnescapeDataString(graphName);
+
             if (!long.TryParse(sessionId, out var sessionIdLong))
                 throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
 
@@ -431,13 +444,15 @@ namespace AI4NGClassifierLambda.Services
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
                     { ":extension", new AttributeValue { S = extension } },
-                    { ":fileName", new AttributeValue { S = graphName } },
+                    { ":fileName", new AttributeValue { S = decodedGraphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
                 Limit = 1
             };
 
+            Console.WriteLine($"Querying {_fileTable} for sessionId: {sessionIdLong}, extension: {extension}, fileName: {decodedGraphName}, userId: {userId}");
             var response = await _dynamoDb.QueryAsync(queryRequest);
+            Console.WriteLine($"Query returned {response.Items.Count} items");
 
             if (response.Items.Count == 0)
                 return null;
@@ -448,6 +463,7 @@ namespace AI4NGClassifierLambda.Services
             if (string.IsNullOrEmpty(filePath))
                 return null;
 
+            Console.WriteLine($"Found filePath: {filePath}");
             return filePath;
         }
 
@@ -616,7 +632,7 @@ namespace AI4NGClassifierLambda.Services
                 return attributeValue.SS.ToArray();
             if (attributeValue.NS?.Count > 0)
                 return attributeValue.NS.Select(decimal.Parse).ToArray();
-            
+
             return null;
         }
     }
