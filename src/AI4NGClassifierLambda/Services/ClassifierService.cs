@@ -1,6 +1,7 @@
 using System.Text.Json;
+using System.Diagnostics;
+using AI4NGClassifierLambda.Interfaces;
 using AI4NGClassifierLambda.Models;
-using AI4NGClassifierLambda.Services.Interfaces;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 
@@ -18,9 +19,7 @@ namespace AI4NGClassifierLambda.Services
         {
             _dynamoDb = dynamoDb;
             _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
-            Console.WriteLine($"Using classifier table: {_classifierTable}");
             _fileTable = Environment.GetEnvironmentVariable("FILE_TABLE") ?? "FBCSPSessionFiles";
-            Console.WriteLine($"Using file table: {_fileTable}");
         }
 
         public async Task<List<Classifier>> GetAllClassifiersAsync(string userId)
@@ -40,8 +39,7 @@ namespace AI4NGClassifierLambda.Services
                 ScanIndexForward = false
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
-            Console.WriteLine($"Found {response.Items.Count} items in table {_classifierTable}");
+            var response = await DynamoDbQuery(queryRequest);
 
             var classifiers = new List<Classifier>();
 
@@ -76,7 +74,10 @@ namespace AI4NGClassifierLambda.Services
                 }
             };
 
+            var sw = Stopwatch.StartNew();
             var response = await _dynamoDb.GetItemAsync(getRequest);
+            sw.Stop();
+            Console.WriteLine($"GetItem - Table: {_classifierTable}, Key: classifierId={classifierId}, ElapsedMs: {sw.ElapsedMilliseconds}, Status: {response.HttpStatusCode}, RequestId: {response.ResponseMetadata?.RequestId}");
 
             if (!response.IsItemSet)
             {
@@ -93,43 +94,6 @@ namespace AI4NGClassifierLambda.Services
 
             Console.WriteLine($"Found classifier: {JsonSerializer.Serialize(response.Item)}");
             return MapToClassifier(response.Item);
-        }
-
-        public async Task<Classifier?> GetClassifierBySessionIdAsync(string userId, string sessionId)
-        {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("UserId is required", nameof(userId));
-            if (string.IsNullOrWhiteSpace(sessionId))
-                throw new ArgumentException("SessionId is required", nameof(sessionId));
-
-            var scanRequest = new ScanRequest
-            {
-                TableName = _classifierTable,
-                FilterExpression = "sessionName = :sessionName AND userId = :userId",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                {
-                    { ":sessionName", new AttributeValue { S = sessionId } },
-                    { ":userId", new AttributeValue { S = userId } }
-                }
-            };
-
-            var response = await _dynamoDb.ScanAsync(scanRequest);
-
-            if (response.Items.Count == 0)
-                return null;
-
-            // Sort by timestamp descending to get latest
-            var sortedItems = response.Items
-                .OrderByDescending(item =>
-                {
-                    if (item.ContainsKey("timestamp") && item["timestamp"].N != null &&
-                        long.TryParse(item["timestamp"].N, out var timestamp))
-                        return timestamp;
-                    return 0;
-                })
-                .ToList();
-
-            return MapToClassifier(sortedItems[0]);
         }
 
         public async Task<Classifier?> GetClassifierBySessionIdAsync(string userId, long sessionId)
@@ -154,7 +118,7 @@ namespace AI4NGClassifierLambda.Services
                 Limit = 1
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await DynamoDbQuery(queryRequest);
 
             if (response.Items.Count == 0)
                 return null;
@@ -164,12 +128,11 @@ namespace AI4NGClassifierLambda.Services
 
         public async Task<List<Graph>> GetGraphsForClassifierBySessionAsync(string userId, string sessionId)
         {
+            var graphs = new List<Graph>();
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("UserId is required", nameof(userId));
             if (string.IsNullOrWhiteSpace(sessionId))
                 throw new ArgumentException("SessionId is required", nameof(sessionId));
-
-            var graphs = new List<Graph>();
 
             // Convert sessionId to long for DynamoDB query
             if (!long.TryParse(sessionId, out var sessionIdLong))
@@ -190,7 +153,7 @@ namespace AI4NGClassifierLambda.Services
                 }
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await DynamoDbQuery(queryRequest);
 
             // Filter for target files and fetch from S3
             foreach (var item in response.Items)
@@ -243,7 +206,7 @@ namespace AI4NGClassifierLambda.Services
                 }
             };
 
-            var response = await _dynamoDb.QueryAsync(queryRequest);
+            var response = await DynamoDbQuery(queryRequest);
 
             // Filter for target files and fetch from S3
             foreach (var item in response.Items)
@@ -266,6 +229,15 @@ namespace AI4NGClassifierLambda.Services
             }
 
             return graphsData;
+        }
+
+        private async Task<QueryResponse> DynamoDbQuery(QueryRequest queryRequest)
+        {
+            var sw = Stopwatch.StartNew();
+            var response = await _dynamoDb.QueryAsync(queryRequest);
+            sw.Stop();
+            LogDynamoQuery("Query", _fileTable, "SessionIdExtensionIndex", "sessionId = :sessionId AND extension = :extension", null, response.Count, response.ScannedCount, response.ConsumedCapacity, response.LastEvaluatedKey != null, sw.ElapsedMilliseconds, response.HttpStatusCode, response.ResponseMetadata?.RequestId);
+            return response;
         }
 
         public async Task<List<string>> GetGraphNamesForClassifierBySessionAsync(string userId, string sessionId)
@@ -299,9 +271,7 @@ namespace AI4NGClassifierLambda.Services
                 }
             };
 
-            Console.WriteLine($"Querying table: {_fileTable} with sessionId: {sessionIdLong}, extension: png, userId: {userId}");
-            var response = await _dynamoDb.QueryAsync(queryRequest);
-            Console.WriteLine($"Query returned {response.Items.Count} items");
+            var response = await DynamoDbQuery(queryRequest);
 
             // Extract file names
             foreach (var item in response.Items)
@@ -386,9 +356,7 @@ namespace AI4NGClassifierLambda.Services
                 Limit = 1
             };
 
-            Console.WriteLine($"Querying {_fileTable} for sessionId: {sessionIdLong}, extension: {extension}, fileName: {decodedGraphName}, userId: {userId}");
-            var response = await _dynamoDb.QueryAsync(queryRequest);
-            Console.WriteLine($"Query returned {response.Items.Count} items");
+            var response = await DynamoDbQuery(queryRequest);
 
             if (response.Items.Count == 0)
                 return null;
@@ -570,6 +538,14 @@ namespace AI4NGClassifierLambda.Services
                 return attributeValue.NS.Select(decimal.Parse).ToArray();
 
             return null;
+        }
+
+        private void LogDynamoQuery(string operation, string table, string? indexName, string keyCondition, int? limit, int count, int scannedCount, ConsumedCapacity? consumedCapacity, bool hasLastEvaluatedKey, long elapsedMs, System.Net.HttpStatusCode statusCode, string? requestId)
+        {
+            var efficiency = scannedCount > 0 ? Math.Round((double)count / scannedCount * 100, 1) : 100.0;
+            var capacityInfo = consumedCapacity != null ? $"RCU: {consumedCapacity.ReadCapacityUnits}" : "N/A";
+
+            Console.WriteLine($"{operation} - Table: {table}, Index: {indexName ?? "N/A"}, KeyCondition: {keyCondition}, Limit: {limit?.ToString() ?? "N/A"}, Count: {count}, ScannedCount: {scannedCount}, Efficiency: {efficiency}%, ConsumedCapacity: {capacityInfo}, Pagination: {hasLastEvaluatedKey}, ElapsedMs: {elapsedMs}, Status: {statusCode}, RequestId: {requestId}");
         }
     }
 }

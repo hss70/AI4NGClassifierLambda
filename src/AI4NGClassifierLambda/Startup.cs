@@ -1,43 +1,48 @@
-﻿namespace AI4NGClassifierLambda;
+﻿using AI4NGClassifierLambda.Interfaces;
+using AI4NGClassifierLambda.Services;
+using Amazon.DynamoDBv2;
 
-public class Startup
+namespace AI4NGClassifierLambda
 {
-    public Startup(IConfiguration configuration)
+    public class Startup
     {
-        Configuration = configuration;
-    }
-
-    public IConfiguration Configuration { get; }
-
-    // This method gets called by the runtime. Use this method to add services to the container
-    public void ConfigureServices(IServiceCollection services)
-    {
-        services.AddControllers();
-        services.AddAWSService<Amazon.DynamoDBv2.IAmazonDynamoDB>();
-        services.AddScoped<AI4NGClassifierLambda.Services.IClassifierService, AI4NGClassifierLambda.Services.ClassifierService>();
-    }
-
-    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-    {
-        if (env.IsDevelopment())
+        public Startup(IConfiguration configuration)
         {
-            app.UseDeveloperExceptionPage();
+            Configuration = configuration;
         }
 
-        app.UseHttpsRedirection();
+        public IConfiguration Configuration { get; }
 
-        app.UseRouting();
-
-        app.UseAuthorization();
-
-        app.UseEndpoints(endpoints =>
+        // This method gets called by the runtime. Use this method to add services to the container
+        public void ConfigureServices(IServiceCollection services)
         {
-            endpoints.MapControllers();
-            endpoints.MapGet("/", async context =>
+            services.AddControllers();
+            services.AddAWSService<IAmazonDynamoDB>();
+            services.AddScoped<IClassifierService, ClassifierService>();
+        }
+
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            if (env.IsDevelopment())
             {
-                await context.Response.WriteAsync("Welcome to running ASP.NET Core on AWS Lambda");
+                app.UseDeveloperExceptionPage();
+            }
+
+            app.UseHttpsRedirection();
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapGet("/", async context =>
+                {
+                    await context.Response.WriteAsync("Welcome to running ASP.NET Core on AWS Lambda");
+                });
             });
-        });
+        }
     }
 }

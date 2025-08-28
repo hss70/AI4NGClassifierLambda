@@ -5,28 +5,29 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 
-namespace DocsGenerator;
-
-public class DocsSwaggerFactory : WebApplicationFactory<LocalEntryPoint>
+namespace DocsGenerator
 {
-    protected override IHost CreateHost(IHostBuilder builder)
+    public class DocsSwaggerFactory : WebApplicationFactory<LocalEntryPoint>
     {
-        var contentRoot = SwaggerOutputHelper.GetContentRoot();
-        builder.UseContentRoot(contentRoot);
-
-        builder.ConfigureServices(services =>
+        protected override IHost CreateHost(IHostBuilder builder)
         {
-            services.AddEndpointsApiExplorer();
-            services.AddSwaggerGen(c =>
+            var contentRoot = SwaggerOutputHelper.GetContentRoot();
+            builder.UseContentRoot(contentRoot);
+
+            builder.ConfigureServices(services =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Classifier API", Version = "v1" });
+                services.AddEndpointsApiExplorer();
+                services.AddSwaggerGen(c =>
+                {
+                    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Classifier API", Version = "v1" });
 
-                var xmlPath = Path.Combine(contentRoot, "bin", "Release", "net8.0", "AI4NGClassifierLambda.xml");
-                if (File.Exists(xmlPath))
-                    c.IncludeXmlComments(xmlPath);
+                    var xmlPath = Path.Combine(contentRoot, "bin", "Release", "net8.0", "AI4NGClassifierLambda.xml");
+                    if (File.Exists(xmlPath))
+                        c.IncludeXmlComments(xmlPath);
+                });
             });
-        });
 
-        return base.CreateHost(builder);
+            return base.CreateHost(builder);
+        }
     }
 }

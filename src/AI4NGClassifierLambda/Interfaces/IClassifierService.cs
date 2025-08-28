@@ -1,3 +1,5 @@
+using AI4NGClassifierLambda.Models;
+
 namespace AI4NGClassifierLambda.Interfaces
 {
     public interface IClassifierService
