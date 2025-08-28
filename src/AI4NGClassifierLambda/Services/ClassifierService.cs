@@ -437,13 +437,12 @@ namespace AI4NGClassifierLambda.Services
             var queryRequest = new QueryRequest
             {
                 TableName = _fileTable,
-                IndexName = "SessionIdExtensionIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND extension = :extension",
-                FilterExpression = "fileName = :fileName AND userId = :userId",
+                IndexName = "SessionIdFileNameIndex",
+                KeyConditionExpression = "sessionId = :sessionId AND fileName = :decodedGraphName",
+                FilterExpression = "userId = :userId",
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
-                    { ":extension", new AttributeValue { S = extension } },
                     { ":fileName", new AttributeValue { S = decodedGraphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
