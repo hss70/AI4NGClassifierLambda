@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using AI4NGClassifierLambda.Models;
 using AI4NGClassifierLambda.Services;
+using AI4NGClassifierLambda.Interfaces;
+
 
 namespace AI4NGClassifierLambda.Controllers
 {
