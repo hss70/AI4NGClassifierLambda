@@ -93,7 +93,7 @@ Resources:
           - !ImportValue NetworkStack-PrivateSubnetIds
       Policies:
         - AWSLambdaBasicExecutionRole
-        - VPCAccessPolicy
+        - AWSLambdaVPCAccessExecutionRole
         - DynamoDBReadPolicy:
             TableName: FBCSPClassifierParameters
         - DynamoDBReadPolicy:
