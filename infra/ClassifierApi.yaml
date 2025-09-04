@@ -85,15 +85,8 @@ Resources:
     Properties:
       Handler: AI4NGClassifierLambda::AI4NGClassifierLambda.LambdaEntryPoint::FunctionHandlerAsync
       CodeUri: ../src/AI4NGClassifierLambda
-      VpcConfig:
-        SecurityGroupIds:
-          - !ImportValue NetworkStack-PrivateSG
-        SubnetIds: !Split
-          - ','
-          - !ImportValue NetworkStack-PrivateSubnetIds
       Policies:
         - AWSLambdaBasicExecutionRole
-        - AWSLambdaVPCAccessExecutionRole
         - DynamoDBReadPolicy:
             TableName: FBCSPClassifierParameters
         - DynamoDBReadPolicy:
