@@ -2,6 +2,12 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: AI4NG Classifier Lambda API
 
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+
 Globals:
   Function:
     Timeout: 30
@@ -55,7 +61,7 @@ Resources:
   AI4NGHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      Name: AI4NG-dev
+      Name: !Sub AI4NG-${Environment}
       StageName: dev
       DefaultRouteSettings:
         DetailedMetricsEnabled: true
@@ -94,13 +100,13 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: FBCSPSessionFiles
         - S3ReadPolicy:
-            BucketName: !Sub ai4ng-eeg-results-${AWS::AccountId}-${AWS::Region}
+            BucketName: !Sub ai4ng-eeg-results-${Environment}-${AWS::AccountId}-${AWS::Region}
       Environment:
         Variables:
           CLASSIFIER_TABLE: FBCSPClassifierParameters
           STATUS_TABLE: EEGProcessingStatus
           FILE_TABLE: FBCSPSessionFiles
-          RESULTS_BUCKET: !Sub ai4ng-eeg-results-${AWS::AccountId}-${AWS::Region}
+          RESULTS_BUCKET: !Sub ai4ng-eeg-results-${Environment}-${AWS::AccountId}-${AWS::Region}
       LoggingConfig:
         LogFormat: JSON
         ApplicationLogLevel: INFO
@@ -214,8 +220,12 @@ Outputs:
   SharedApiId:
     Value: !Ref AI4NGHttpApi
     Export:
-      Name: SharedApiId
+      Name: !Sub SharedApiId-${Environment}
   SharedApiAuthorizerId:
     Value: !Ref AI4NGCognitoAuthorizer
     Export:
-      Name: SharedApiAuthorizerId
+      Name: !Sub SharedApiAuthorizerId-${Environment}
+  ResultsBucketName:
+    Value: !Sub ai4ng-eeg-results-${Environment}-${AWS::AccountId}-${AWS::Region}
+    Export:
+      Name: !Sub EEGResultsBucketName-${Environment}

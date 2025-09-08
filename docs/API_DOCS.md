@@ -40,9 +40,9 @@ Get all graph data for a classifier by session ID
 - **Status:** 200 OK, 400 Bad Request
 
 ### GET /api/classifiers/session/{sessionId}/graphnames
-Get all graph names for a classifier by session ID
+Get all graph names for a classifier by session ID (without .png extension)
 - **Parameters:** `sessionId` (string) - The session ID
-- **Response:** Array of strings
+- **Response:** Array of strings (graph names without file extensions)
 - **Status:** 200 OK, 400 Bad Request
 
 ### GET /api/classifiers/session/{sessionId}/graphs/{graphName}
@@ -125,8 +125,8 @@ Get specific graph data by name for session
 | GET /api/classifiers/session/{sessionId}/graphs | FBCSPSessionFiles | SessionIdExtensionIndex | Get PNG files for session |
 | GET /api/classifiers/session/{sessionId}/graphdata | FBCSPSessionFiles | SessionIdExtensionIndex | Get JSON files for session |
 | GET /api/classifiers/session/{sessionId}/graphnames | FBCSPSessionFiles | SessionIdExtensionIndex | Get PNG file names |
-| GET /api/classifiers/session/{sessionId}/graphs/{name} | FBCSPSessionFiles | SessionIdExtensionIndex | Get specific PNG file |
-| GET /api/classifiers/session/{sessionId}/graphdata/{name} | FBCSPSessionFiles | SessionIdExtensionIndex | Get specific JSON file |
+| GET /api/classifiers/session/{sessionId}/graphs/{name} | FBCSPSessionFiles | SessionIdFileNameIndex | Get specific PNG file |
+| GET /api/classifiers/session/{sessionId}/graphdata/{name} | FBCSPSessionFiles | SessionIdFileNameIndex | Get specific JSON file |
 
 ### Index Details
 
@@ -138,4 +138,5 @@ Get specific graph data by name for session
 #### FBCSPSessionFiles
 - **Primary Key**: sessionName (HASH), filePath (RANGE)
 - **SessionIdExtensionIndex**: sessionId (HASH), extension (RANGE)
+- **SessionIdFileNameIndex**: sessionId (HASH), fileName (RANGE)
 - **UserIdCreatedAtIndex**: userId (HASH), createdAt (RANGE)
