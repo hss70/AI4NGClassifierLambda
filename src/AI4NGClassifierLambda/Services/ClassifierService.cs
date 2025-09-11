@@ -12,6 +12,7 @@ namespace AI4NGClassifierLambda.Services
         private readonly IAmazonDynamoDB _dynamoDb;
         private readonly string _classifierTable;
         private readonly string _fileTable;
+        private readonly string _resultsBucket;
         private static readonly string[] TargetGraphs = ["DA plot (smoothed).png", "DA plot.png", "heatmap (Freq v4).png"];
         private static readonly string[] TargetGraphsData = ["DA plot (smoothed).json", "DA plot.json", "heatmap (Freq v4).json"];
 
