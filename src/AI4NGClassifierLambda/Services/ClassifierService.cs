@@ -18,8 +18,9 @@ namespace AI4NGClassifierLambda.Services
         public ClassifierService(IAmazonDynamoDB dynamoDb, IConfiguration configuration)
         {
             _dynamoDb = dynamoDb;
-            _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE") ?? "FBCSPClassifierParameters";
-            _fileTable = Environment.GetEnvironmentVariable("FILE_TABLE") ?? "FBCSPSessionFiles";
+            _classifierTable = Environment.GetEnvironmentVariable("CLASSIFIER_TABLE")!;
+            _fileTable = Environment.GetEnvironmentVariable("FILE_TABLE")!;
+            _resultsBucket = Environment.GetEnvironmentVariable("RESULTS_BUCKET")!;
         }
 
         public async Task<List<Classifier>> GetAllClassifiersAsync(string userId)
@@ -338,51 +339,51 @@ namespace AI4NGClassifierLambda.Services
                 if (string.IsNullOrWhiteSpace(extension))
                     throw new ArgumentException("Extension is required", nameof(extension));
 
-            Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
-            var decodedGraphName = Uri.UnescapeDataString(graphName) + $".{extension}";
-            Console.WriteLine($"Decoded graph name: {decodedGraphName}");
+                Console.WriteLine($"GetGraphFileNameByName - UserId: {userId}, SessionId: {sessionId}, GraphName: {graphName}, Extension: {extension}");
+                var decodedGraphName = Uri.UnescapeDataString(graphName) + $".{extension}";
+                Console.WriteLine($"Decoded graph name: {decodedGraphName}");
 
-            if (!long.TryParse(sessionId, out var sessionIdLong))
-            {
-                Console.WriteLine($"Failed to parse sessionId: {sessionId}");
-                throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
-            }
+                if (!long.TryParse(sessionId, out var sessionIdLong))
+                {
+                    Console.WriteLine($"Failed to parse sessionId: {sessionId}");
+                    throw new ArgumentException("SessionId must be a valid number", nameof(sessionId));
+                }
 
-            var queryRequest = new QueryRequest
-            {
-                TableName = _fileTable,
-                IndexName = "SessionIdFileNameIndex",
-                KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
-                FilterExpression = "userId = :userId",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                var queryRequest = new QueryRequest
+                {
+                    TableName = _fileTable,
+                    IndexName = "SessionIdFileNameIndex",
+                    KeyConditionExpression = "sessionId = :sessionId AND fileName = :fileName",
+                    FilterExpression = "userId = :userId",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
                     { ":sessionId", new AttributeValue { N = sessionIdLong.ToString() } },
                     { ":fileName", new AttributeValue { S = decodedGraphName } },
                     { ":userId", new AttributeValue { S = userId } }
                 },
-                Limit = 1
-            };
+                    Limit = 1
+                };
 
-            var response = await DynamoDbQuery(queryRequest);
+                var response = await DynamoDbQuery(queryRequest);
 
-            if (response.Items.Count == 0)
-            {
-                Console.WriteLine($"No items found for fileName: {decodedGraphName}");
-                return null;
-            }
+                if (response.Items.Count == 0)
+                {
+                    Console.WriteLine($"No items found for fileName: {decodedGraphName}");
+                    return null;
+                }
 
-            var item = response.Items[0];
-            Console.WriteLine($"Found item: {JsonSerializer.Serialize(item)}");
-            var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
+                var item = response.Items[0];
+                Console.WriteLine($"Found item: {JsonSerializer.Serialize(item)}");
+                var filePath = item.ContainsKey("filePath") && item["filePath"].S != null ? item["filePath"].S : "";
 
-            if (string.IsNullOrEmpty(filePath))
-            {
-                Console.WriteLine("FilePath is empty in DynamoDB item");
-                return null;
-            }
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    Console.WriteLine("FilePath is empty in DynamoDB item");
+                    return null;
+                }
 
-            Console.WriteLine($"Found filePath: {filePath}");
-            return filePath;
+                Console.WriteLine($"Found filePath: {filePath}");
+                return filePath;
             }
             catch (Exception ex)
             {
@@ -395,11 +396,10 @@ namespace AI4NGClassifierLambda.Services
         private async Task<string> GetFileFromS3(string filePath)
         {
             var s3Client = new Amazon.S3.AmazonS3Client();
-            var resultsBucket = Environment.GetEnvironmentVariable("RESULTS_BUCKET") ?? "ai4ng-eeg-results";
 
             var request = new Amazon.S3.Model.GetObjectRequest
             {
-                BucketName = resultsBucket,
+                BucketName = _resultsBucket,
                 Key = filePath
             };
 
@@ -412,11 +412,10 @@ namespace AI4NGClassifierLambda.Services
         private async Task<string> GetJsonFromS3(string filePath)
         {
             var s3Client = new Amazon.S3.AmazonS3Client();
-            var resultsBucket = Environment.GetEnvironmentVariable("RESULTS_BUCKET") ?? "ai4ng-eeg-results";
 
             var request = new Amazon.S3.Model.GetObjectRequest
             {
-                BucketName = resultsBucket,
+                BucketName = _resultsBucket,
                 Key = filePath
             };
 
@@ -449,6 +448,15 @@ namespace AI4NGClassifierLambda.Services
                     ? item["timestamp"].N
                     : "0";
 
+                // PeakAccuracy
+                var peakAccuracyStr = item.ContainsKey("peakAccuracy") && item["peakAccuracy"].N != null
+                    ? item["peakAccuracy"].N
+                    : "0.0";
+                // ErrorMargin
+                var errorMarginStr = item.ContainsKey("errorMargin") && item["errorMargin"].N != null
+                    ? item["errorMargin"].N
+                    : "0.0";
+
                 if (!long.TryParse(classifierIdStr, out var classifierId))
                     classifierId = 0;
 
@@ -469,8 +477,8 @@ namespace AI4NGClassifierLambda.Services
                     Status = "Ready",
                     UploadDate = DateTimeOffset.FromUnixTimeSeconds(timestampSecs).DateTime,
                     LastUpdated = DateTimeOffset.FromUnixTimeSeconds(timestampSecs).DateTime,
-                    PeakAccuracy = 0.0,
-                    ErrorMargin = 0.0,
+                    PeakAccuracy = double.TryParse(peakAccuracyStr, out var peakAccuracy) ? peakAccuracy : 0.0,
+                    ErrorMargin = double.TryParse(errorMarginStr, out var errorMargin) ? errorMargin : 0.0,
                     Parameters = ExtractParameters(item)
                 };
             }
