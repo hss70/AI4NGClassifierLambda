@@ -1,7 +1,6 @@
 {
     "Parameters": {
-        "Environment": "dev",
-        "NotificationEmail": "hss70@bath.ac.uk"
+        "Environment": "dev"
     },
     "Tags": {
         "Project": "AI4NG",
