@@ -1,0 +1,302 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AI4NG Classifier Lambda API
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: dotnet8
+
+Resources:
+  ClassifierLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/ai4ng-${Environment}-classifier-api
+      RetentionInDays: 30
+
+  ClassifierLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ai4ng-${Environment}-classifier-api-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub ai4ng-${Environment}-classifier-api-inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadClassifierTable
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                Resource:
+                  - Fn::ImportValue: !Sub AI4NG-${Environment}-EEGClassifierTableArn
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub AI4NG-${Environment}-EEGClassifierTableArn
+
+              - Sid: ReadStatusTable
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                Resource:
+                  - Fn::ImportValue: !Sub AI4NG-${Environment}-ProcessingStatusTableArn
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub AI4NG-${Environment}-ProcessingStatusTableArn
+
+              - Sid: ReadSessionFilesTable
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:DescribeTable
+                Resource:
+                  - Fn::ImportValue: !Sub AI4NG-${Environment}-FBCSPSessionFilesTableArn
+                  - !Sub
+                    - "${TableArn}/index/*"
+                    - TableArn:
+                        Fn::ImportValue: !Sub AI4NG-${Environment}-FBCSPSessionFilesTableArn
+
+              - Sid: ListResultsBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  Fn::ImportValue: !Sub AI4NG-${Environment}-EEGResultsBucketArn
+
+              - Sid: ReadResultsBucketObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub
+                  - "${BucketArn}/*"
+                  - BucketArn:
+                      Fn::ImportValue: !Sub AI4NG-${Environment}-EEGResultsBucketArn
+
+      Tags:
+        - Key: Project
+          Value: AI4NG
+        - Key: Environment
+          Value: !Ref Environment
+
+  ClassifierLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ai4ng-${Environment}-classifier-api
+      Role: !GetAtt ClassifierLambdaRole.Arn
+      Handler: AI4NGClassifierLambda::AI4NGClassifierLambda.LambdaEntryPoint::FunctionHandlerAsync
+      CodeUri: ../src/AI4NGClassifierLambda
+      Environment:
+        Variables:
+          CLASSIFIER_TABLE:
+            Fn::ImportValue: !Sub AI4NG-${Environment}-EEGClassifierTableName
+          STATUS_TABLE:
+            Fn::ImportValue: !Sub AI4NG-${Environment}-ProcessingStatusTableName
+          FILE_TABLE:
+            Fn::ImportValue: !Sub AI4NG-${Environment}-FBCSPSessionFilesTableName
+          RESULTS_BUCKET:
+            Fn::ImportValue: !Sub AI4NG-${Environment}-EEGResultsBucketName
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: INFO
+        SystemLogLevel: INFO
+        LogGroup: !Ref ClassifierLambdaLogGroup
+      Tags:
+        Project: AI4NG
+        Environment: !Ref Environment
+
+  ClassifierIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ClassifierLambda.Arn
+      PayloadFormatVersion: "2.0"
+      IntegrationMethod: POST
+
+  GetClassifiersRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetClassifierByIdRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/{classifierId}
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphsForClassifierRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/{classifierId}/graphs
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetClassifierBySessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphsForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphs
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphDataForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphdata
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphNamesForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphnames
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphByNameForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphs/{graphName}
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  GetGraphDataByNameForSessionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+      RouteKey: GET /api/classifiers/session/{sessionId}/graphdata/{graphName}
+      AuthorizationType: JWT
+      AuthorizerId:
+        Fn::ImportValue:
+          Fn::Sub: AI4NG-${Environment}-ParticipantAuthorizerId
+      Target: !Sub integrations/${ClassifierIntegration}
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ClassifierLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub
+        - arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiId}/*/GET/api/classifiers*
+        - ApiId:
+            Fn::ImportValue:
+              Fn::Sub: AI4NG-${Environment}-SharedHttpApiId
+
+Outputs:
+  ClassifierLambdaName:
+    Description: Name of the classifier API Lambda
+    Value: !Ref ClassifierLambda
+    Export:
+      Name: !Sub AI4NG-${Environment}-ClassifierLambdaName
+
+  ClassifierLambdaArn:
+    Description: ARN of the classifier API Lambda
+    Value: !GetAtt ClassifierLambda.Arn
+    Export:
+      Name: !Sub AI4NG-${Environment}-ClassifierLambdaArn
+
+  ClassifierLambdaRoleArn:
+    Description: ARN of the classifier API Lambda role
+    Value: !GetAtt ClassifierLambdaRole.Arn
+    Export:
+      Name: !Sub AI4NG-${Environment}-ClassifierLambdaRoleArn
+
+  ClassifierLambdaLogGroupName:
+    Description: Log group for the classifier API Lambda
+    Value: !Ref ClassifierLambdaLogGroup
+    Export:
+      Name: !Sub AI4NG-${Environment}-ClassifierLambdaLogGroupName

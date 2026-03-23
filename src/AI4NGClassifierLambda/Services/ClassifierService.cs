@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Diagnostics;
+using System.Globalization;
 using AI4NGClassifierLambda.Interfaces;
 using AI4NGClassifierLambda.Models;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using AI4NGClassifierLambda.Utils;
 
 namespace AI4NGClassifierLambda.Services
 {
@@ -236,9 +238,26 @@ namespace AI4NGClassifierLambda.Services
         private async Task<QueryResponse> DynamoDbQuery(QueryRequest queryRequest)
         {
             var sw = Stopwatch.StartNew();
+            queryRequest.ReturnConsumedCapacity = ReturnConsumedCapacity.TOTAL;
+
             var response = await _dynamoDb.QueryAsync(queryRequest);
+
             sw.Stop();
-            LogDynamoQuery("Query", _fileTable, "SessionIdExtensionIndex", "sessionId = :sessionId AND extension = :extension", null, response.Count, response.ScannedCount, response.ConsumedCapacity, response.LastEvaluatedKey != null, sw.ElapsedMilliseconds, response.HttpStatusCode, response.ResponseMetadata?.RequestId);
+
+            LogDynamoQuery(
+                "Query",
+                queryRequest.TableName,
+                queryRequest.IndexName,
+                queryRequest.KeyConditionExpression,
+                queryRequest.Limit,
+                response.Count,
+                response.ScannedCount,
+                response.ConsumedCapacity,
+                response.LastEvaluatedKey != null && response.LastEvaluatedKey.Count > 0,
+                sw.ElapsedMilliseconds,
+                response.HttpStatusCode,
+                response.ResponseMetadata?.RequestId);
+
             return response;
         }
 
@@ -480,7 +499,8 @@ namespace AI4NGClassifierLambda.Services
                     LastUpdated = DateTimeOffset.FromUnixTimeSeconds(timestampSecs).DateTime,
                     PeakAccuracy = double.TryParse(peakAccuracyStr, out var peakAccuracy) ? peakAccuracy : 0.0,
                     ErrorMargin = double.TryParse(errorMarginStr, out var errorMargin) ? errorMargin : 0.0,
-                    Parameters = ExtractParameters(item)
+                    Parameters = ExtractParameters(item),
+                    ResultsTable = ExtractResultsTable(item)
                 };
             }
             catch (Exception ex)
@@ -507,32 +527,17 @@ namespace AI4NGClassifierLambda.Services
 
                 var paramMap = cfMap["param"].M;
 
-                // Extract a0 (single number)
-                float a0 = 0f;
-                if (paramMap.ContainsKey("a0") && paramMap["a0"].N != null &&
-                    float.TryParse(paramMap["a0"].N, out var a0Val))
-                {
-                    a0 = a0Val;
-                }
-
-                // Extract a1N (list of numbers)
-                var a1Array = new List<float>();
-                if (paramMap.ContainsKey("a1N") && paramMap["a1N"].L != null)
-                {
-                    foreach (var element in paramMap["a1N"].L)
-                    {
-                        if (element.N != null && float.TryParse(element.N, out var val))
-                            a1Array.Add(val);
-                    }
-                }
+                // Extract a0 and a1N using helpers
+                float a0 = paramMap.GetFloat("a0", 0f);
+                var a1Array = paramMap.GetFloatArray("a1N");
 
                 // Convert DynamoDB AttributeValue to clean JSON
-                var cleanCfJson = ConvertAttributeValueToObject(item["cf"]);
+                var cleanCfJson = item["cf"].ToPlainObject();
 
                 return new Parameters
                 {
                     A0 = a0,
-                    A1 = a1Array.ToArray(),
+                    A1 = a1Array,
                     FullCfJson = JsonSerializer.Serialize(cleanCfJson)
                 };
             }
@@ -548,26 +553,68 @@ namespace AI4NGClassifierLambda.Services
             }
         }
 
+        private T1ResultTable? ExtractResultsTable(Dictionary<string, AttributeValue> item)
+        {
+            if (!item.ContainsKey("resultsTable") || item["resultsTable"].M == null)
+            {
+                Console.WriteLine("No resultsTable field found in item");
+                return null;
+            }
+
+            try
+            {
+                var map = item["resultsTable"].M;
+
+                var result = new T1ResultTable
+                {
+                    SsrCode = map.GetString("ssr_code"),
+                    Classes = map.GetInt("classes"),
+                    CVfolds = map.GetInt("CVfolds"),
+                    AllTrials = map.GetInt("allTrials"),
+                    TrPerClass = map.GetIntArray("trPerClass"),
+                    TestTrials = map.GetInt("testTrials"),
+                    TestTrPerClass = map.GetIntArray("testTrPerClass"),
+                    TrainTrials = map.GetInt("trainTrials"),
+                    TrainTrPerClass = map.GetIntArray("trainTrPerClass"),
+                    CfWinMs = map.GetInt("cfWin_ms"),
+                    CfStepMs = map.GetInt("cfStep_ms"),
+                    SmoothWidthMs = map.GetInt("smoothWidth_ms"),
+                    OptTtId = map.GetInt("opt_tt_ID"),
+                    TrigPointMs = map.GetInt("trigPoint_ms"),
+                    RefIntervalMs = map.GetIntArray("refInterval_ms"),
+                    TaskIntervalMs = map.GetIntArray("taskInterval_ms"),
+                    RefPeakMs = map.GetInt("refPeak_ms"),
+                    TaskPeakMs = map.GetInt("taskPeak_ms"),
+                    SmoothRefPeakMs = map.GetInt("smooth_refPeak_ms"),
+                    SmoothTaskPeakMs = map.GetInt("smooth_taskPeak_ms"),
+                    RefPeakDA_Mean = map.GetDouble("refPeakDA_mean"),
+                    RefPeakDA_Std = map.GetDouble("refPeakDA_std"),
+                    TaskPeakDA_Mean = map.GetDouble("taskPeakDA_mean"),
+                    TaskPeakDA_Std = map.GetDouble("taskPeakDA_std"),
+                    SmoothRefPeakDA_Mean = map.GetDouble("smooth_refPeakDA_mean"),
+                    SmoothRefPeakDA_Std = map.GetDouble("smooth_refPeakDA_std"),
+                    SmoothTaskPeakDA_Mean = map.GetDouble("smooth_taskPeakDA_mean"),
+                    SmoothTaskPeakDA_Std = map.GetDouble("smooth_taskPeakDA_std"),
+                    RefPeakDA_Lower_TaskPeakDA_Ttest_P = map.GetDouble("refPeakDA_lower_taskPeakDA_ttest_p"),
+                    RefPeakDA_Lower_TaskPeakDA_Wilc_P = map.GetDouble("refPeakDA_lower_taskPeakDA_wilc_p"),
+                    SmoothRefPeakDA_Lower_TaskPeakDA_Ttest_P = map.GetDouble("smooth_refPeakDA_lower_taskPeakDA_ttest_p"),
+                    SmoothRefPeakDA_Lower_TaskPeakDA_Wilc_P = map.GetDouble("smooth_refPeakDA_lower_taskPeakDA_wilc_p")
+                };
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error extracting results table: {ex.Message}");
+                return null;
+            }
+        }
+
+
         private object? ConvertAttributeValueToObject(AttributeValue attributeValue)
         {
-            if (attributeValue.NULL)
-                return null;
-            if (attributeValue.S != null)
-                return attributeValue.S;
-            if (attributeValue.N != null)
-                return decimal.Parse(attributeValue.N);
-            if (attributeValue.BOOL)
-                return attributeValue.BOOL;
-            if (attributeValue.L?.Count > 0)
-                return attributeValue.L.Select(ConvertAttributeValueToObject).ToArray();
-            if (attributeValue.M?.Count > 0)
-                return attributeValue.M.ToDictionary(kvp => kvp.Key, kvp => ConvertAttributeValueToObject(kvp.Value));
-            if (attributeValue.SS?.Count > 0)
-                return attributeValue.SS.ToArray();
-            if (attributeValue.NS?.Count > 0)
-                return attributeValue.NS.Select(decimal.Parse).ToArray();
-
-            return null;
+            // Delegate to shared extension for consistency
+            return attributeValue.ToPlainObject();
         }
 
         private void LogDynamoQuery(string operation, string table, string? indexName, string keyCondition, int? limit, int count, int scannedCount, ConsumedCapacity? consumedCapacity, bool hasLastEvaluatedKey, long elapsedMs, System.Net.HttpStatusCode statusCode, string? requestId)
