@@ -25,7 +25,8 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine("Endpoint: GET /api/classifiers");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
+
                 var classifiers = await _classifierService.GetAllClassifiersAsync(userId);
                 return Ok(classifiers);
             }
@@ -44,7 +45,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/{classifierId}");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var classifier = await _classifierService.GetClassifierByIdAsync(userId, classifierId);
                 if (classifier == null)
                     return NotFound();
@@ -66,7 +67,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var classifier = await _classifierService.GetClassifierBySessionIdAsync(userId, sessionId);
                 if (classifier == null)
                     return NotFound();
@@ -89,7 +90,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphs");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var graphs = await _classifierService.GetGraphsForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphs);
             }
@@ -107,7 +108,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphdata");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var graphData = await _classifierService.GetGraphDataForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphData);
             }
@@ -125,7 +126,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphnames");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var graphNames = await _classifierService.GetGraphNamesForClassifierBySessionAsync(userId, sessionId);
                 return Ok(graphNames);
             }
@@ -144,7 +145,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphs/{graphName}");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var graph = await _classifierService.GetGraphByNameForClassifierBySessionAsync(userId, sessionId, graphName);
                 if (graph == null)
                     return NotFound();
@@ -166,7 +167,7 @@ namespace AI4NGClassifierLambda.Controllers
             try
             {
                 Console.WriteLine($"Endpoint: GET /api/classifiers/session/{sessionId}/graphdata/{graphName}");
-                var userId = User.FindFirst("username")?.Value;
+                var userId = GetUserIdFromRequest();
                 var graphData = await _classifierService.GetGraphDataByNameForClassifierBySessionAsync(userId, sessionId, graphName);
                 if (graphData == null)
                     return NotFound();
@@ -190,6 +191,13 @@ namespace AI4NGClassifierLambda.Controllers
                 TimeoutException => StatusCode(408, "Request timeout"),
                 _ => throw ex
             };
+        }
+
+        private string GetUserIdFromRequest()
+        {
+            return User.FindFirst("cognito:username")?.Value
+                ?? User.FindFirst("username")?.Value
+                ?? User.FindFirst("sub")?.Value;
         }
     }
 }
