@@ -402,10 +402,11 @@ namespace AI4NGClassifierLambda.Services
         {
             var s3Client = new Amazon.S3.AmazonS3Client();
 
+            var s3Key = NormaliseS3Key(filePath);
             var request = new Amazon.S3.Model.GetObjectRequest
             {
                 BucketName = _resultsBucket,
-                Key = filePath
+                Key = s3Key
             };
 
             using var response = await s3Client.GetObjectAsync(request);
@@ -418,10 +419,11 @@ namespace AI4NGClassifierLambda.Services
         {
             var s3Client = new Amazon.S3.AmazonS3Client();
 
+            var s3Key = NormaliseS3Key(filePath);
             var request = new Amazon.S3.Model.GetObjectRequest
             {
                 BucketName = _resultsBucket,
-                Key = filePath
+                Key = s3Key
             };
 
             using var response = await s3Client.GetObjectAsync(request);
@@ -607,6 +609,22 @@ namespace AI4NGClassifierLambda.Services
             var capacityInfo = consumedCapacity != null ? $"RCU: {consumedCapacity.ReadCapacityUnits}" : "N/A";
 
             Console.WriteLine($"{operation} - Table: {table}, Index: {indexName ?? "N/A"}, KeyCondition: {keyCondition}, Limit: {limit?.ToString() ?? "N/A"}, Count: {count}, ScannedCount: {scannedCount}, Efficiency: {efficiency}%, ConsumedCapacity: {capacityInfo}, Pagination: {hasLastEvaluatedKey}, ElapsedMs: {elapsedMs}, Status: {statusCode}, RequestId: {requestId}");
+        }
+
+        // Normalizes the S3 key by removing any erroneous segments and leading slashes. Temp fix for a bug in the processor that generates the S3 key with an extra segment.
+        private static string NormaliseS3Key(string filePath)
+        {
+            const string erroneousSegment = "//app/output/";
+
+            if (filePath.Contains(erroneousSegment, StringComparison.Ordinal))
+            {
+                filePath = filePath.Replace(
+                    erroneousSegment,
+                    "/",
+                    StringComparison.Ordinal);
+            }
+
+            return filePath.TrimStart('/');
         }
     }
 }
